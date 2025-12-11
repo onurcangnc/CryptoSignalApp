@@ -84,7 +84,7 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-6">
-        {current === 'dashboard' && <Dashboard t={t} lang={lang} />}
+        {current === 'dashboard' && <Dashboard t={t} lang={lang} user={user} />}
         {current === 'signals' && <Signals t={t} lang={lang} />}
         {current === 'ai-summary' && <AISummary t={t} lang={lang} user={user} />}
         {current === 'news' && <News t={t} lang={lang} />}

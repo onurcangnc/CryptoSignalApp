@@ -5,7 +5,7 @@ import { formatPrice, formatNumber, formatChange } from '../utils/formatters'
 import AnalysisModal from '../components/modals/AnalysisModal'
 import { useWebSocket } from '../hooks/useWebSocket'
 
-const Dashboard = ({ t, lang }) => {
+const Dashboard = ({ t, lang, user }) => {
   const [coins, setCoins] = useState([])
   const [prices, setPrices] = useState({})
   const [fearGreed, setFearGreed] = useState(null)
@@ -13,6 +13,9 @@ const Dashboard = ({ t, lang }) => {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
+
+  // Telegram bot username (user bot, not admin bot)
+  const TELEGRAM_BOT_USERNAME = 'cryptosignalanalyzer_bot'
 
   // WebSocket connection for real-time price updates
   const { isConnected } = useWebSocket((data) => {
@@ -118,7 +121,7 @@ const Dashboard = ({ t, lang }) => {
   return (
     <div className="space-y-6">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Fear & Greed */}
         {fearGreed && (
           <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
@@ -161,6 +164,31 @@ const Dashboard = ({ t, lang }) => {
             </div>
           </div>
         )}
+
+        {/* Telegram Notification */}
+        <a
+          href={`https://t.me/${TELEGRAM_BOT_USERNAME}?start=connect_${user?.id || ''}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 border border-blue-400/50 hover:from-blue-600 hover:to-blue-700 transition-all cursor-pointer shadow-lg hover:shadow-blue-500/20"
+        >
+          <h3 className="text-white text-sm mb-2 flex items-center gap-2">
+            📱 {lang === 'tr' ? 'Telegram Bildirimleri' : 'Telegram Notifications'}
+          </h3>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-2xl font-bold text-white mb-1">
+                @{TELEGRAM_BOT_USERNAME}
+              </div>
+              <div className="text-sm text-blue-100 opacity-90">
+                {lang === 'tr' ? 'Portföy bildirimlerini al' : 'Get portfolio alerts'}
+              </div>
+            </div>
+            <div className="text-4xl">
+              💬
+            </div>
+          </div>
+        </a>
       </div>
 
       {/* Search */}
