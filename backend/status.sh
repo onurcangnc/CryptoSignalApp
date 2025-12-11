@@ -41,6 +41,7 @@ check_service cryptosignal-sentiment
 check_service cryptosignal-ai-analyst
 check_service cryptosignal-signal-checker
 check_service cryptosignal-telegram
+check_service cryptosignal-telegram-admin
 
 echo ""
 echo "🌐 Application:"

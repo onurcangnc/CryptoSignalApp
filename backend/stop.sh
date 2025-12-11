@@ -27,6 +27,7 @@ stop_service cryptosignal-backend
 
 echo ""
 echo "⚙️ Workers:"
+stop_service cryptosignal-telegram-admin
 stop_service cryptosignal-telegram
 stop_service cryptosignal-signal-checker
 stop_service cryptosignal-ai-analyst

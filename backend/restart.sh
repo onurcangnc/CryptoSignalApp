@@ -34,6 +34,7 @@ restart_service cryptosignal-sentiment
 restart_service cryptosignal-ai-analyst
 restart_service cryptosignal-signal-checker
 restart_service cryptosignal-telegram
+restart_service cryptosignal-telegram-admin
 
 echo ""
 echo "🌐 Application:"
@@ -58,7 +59,8 @@ for svc in redis-server \
            cryptosignal-sentiment \
            cryptosignal-ai-analyst \
            cryptosignal-signal-checker \
-           cryptosignal-telegram; do
+           cryptosignal-telegram \
+           cryptosignal-telegram-admin; do
     status=$(systemctl is-active $svc 2>/dev/null)
     if [ "$status" = "active" ]; then
         echo -e "  ${GREEN}✅${NC} $svc"

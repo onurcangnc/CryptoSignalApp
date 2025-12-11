@@ -368,7 +368,7 @@ export default function PremiumPage({ user, setCurrent }) {
           fontSize: '14px',
           marginTop: '20px'
         }}>
-          Sorun mu yaşıyorsunuz? <a href="mailto:support@cryptosignal.ai" style={{ color: '#667eea' }}>Destek ekibimize ulaşın</a>
+          Hesabınız 1-2 saat içinde onaylanmazsa <a href="mailto:onurcangencbilkent@gmail.com" style={{ color: '#667eea' }}>onurcangencbilkent@gmail.com</a> ile iletişime geçebilirsiniz.
         </p>
       </div>
 

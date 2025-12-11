@@ -9,8 +9,26 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from dependencies import get_current_user
 from datetime import datetime
+import asyncio
+import os
 
 router = APIRouter(prefix="/api/payment", tags=["payment"])
+
+# Telegram Admin Notification
+async def notify_admin_payment(user_email: str, user_id: int, amount: float):
+    """Admin bot'a ödeme bildirimi gönder"""
+    try:
+        # Import here to avoid circular dependency
+        import sys
+        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+        from worker_telegram_admin import notify_payment
+
+        # Background task olarak çalıştır
+        asyncio.create_task(notify_payment(user_email, user_id, amount))
+        print(f"[PAYMENT] Admin notification sent for user {user_id}")
+    except Exception as e:
+        print(f"[PAYMENT] Admin notification error: {e}")
 
 
 class ManualPaymentNotification(BaseModel):
@@ -30,23 +48,23 @@ async def manual_payment_notification(
     Manuel olarak tier güncellenecek
     """
 
-    # Log'a yaz
-    print(f"\n{'='*60}")
-    print(f"[ÖDEME BİLDİRİMİ]")
-    print(f"{'='*60}")
-    print(f"User: {user['email']}")
-    print(f"User ID: {user['id']}")
-    print(f"Tier: {request.tier}")
-    print(f"Amount: ${request.amount}")
-    print(f"Timestamp: {datetime.utcnow().isoformat()}")
-    print(f"{'='*60}")
-    print(f"\n⚠️ BTCTurk'ü kontrol et ve tier'ı güncelle!")
-    print(f"Komut: UPDATE users SET tier = '{request.tier}' WHERE id = '{user['id']}';")
-    print(f"{'='*60}\n")
+    # Database'e kaydet (payment_notifications table)
+    from database import get_db
+    conn = get_db()
+    c = conn.cursor()
 
-    # TODO: Email/Telegram bildirimi ekleyebilirsiniz
-    # send_telegram_notification(...)
-    # send_email_notification(...)
+    c.execute(
+        "INSERT INTO payment_notifications (user_id, tier, amount, status, created_at) VALUES (?, ?, ?, 'pending', ?)",
+        (user['id'], request.tier, request.amount, datetime.utcnow().isoformat())
+    )
+    conn.commit()
+    conn.close()
+
+    # Telegram Admin'e bildirim gönder
+    await notify_admin_payment(user['email'], user['id'], request.amount)
+
+    # Log
+    print(f"[PAYMENT] Notification saved: user_id={user['id']}, amount=${request.amount}")
 
     return {
         "success": True,
