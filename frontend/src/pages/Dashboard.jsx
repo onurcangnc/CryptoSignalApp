@@ -164,20 +164,30 @@ const Dashboard = ({ t, lang, user }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-20 w-20 border-b-4 border-t-4 border-yellow-500 mx-auto"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-4xl animate-pulse">🚀</div>
+            </div>
+          </div>
+          <p className="mt-6 text-gray-400 font-medium animate-pulse">
+            {lang === 'tr' ? 'Yükleniyor...' : 'Loading...'}
+          </p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Top Stats Grid - 3 columns */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Fear & Greed */}
         {fearGreed && (
-          <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-            <h3 className="text-gray-400 text-sm mb-2 flex items-center gap-2">
+          <div className="group bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-gray-900/50 hover:-translate-y-1">
+            <h3 className="text-gray-400 text-sm mb-2 flex items-center gap-2 group-hover:text-gray-300 transition-colors">
               😱 {lang === 'tr' ? 'Piyasa Duygusu' : 'Market Sentiment'}
             </h3>
             <div className="space-y-2">
