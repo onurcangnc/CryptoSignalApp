@@ -1,0 +1,15 @@
+[0;1;32m●[0m cryptosignal-backend.service - CryptoSignal AI Backend
+     Loaded: loaded (/etc/systemd/system/cryptosignal-backend.service; enabled; vendor preset: enabled)
+     Active: [0;1;32mactive (running)[0m since Mon 2025-12-08 15:20:20 UTC; 1min 47s ago
+   Main PID: 144499 (python)
+      Tasks: 2 (limit: 19071)
+     Memory: 44.2M
+        CPU: 3.833s
+     CGroup: /system.slice/cryptosignal-backend.service
+             └─144499 /opt/cryptosignal-app/backend/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000
+
+Dec 08 15:20:20 46-37-115-3.febzen.com systemd[1]: Started CryptoSignal AI Backend.
+Dec 08 15:20:22 46-37-115-3.febzen.com python[144499]: INFO:     Started server process [144499]
+Dec 08 15:20:22 46-37-115-3.febzen.com python[144499]: INFO:     Waiting for application startup.
+Dec 08 15:21:23 46-37-115-3.febzen.com python[144499]: INFO:     Application startup complete.
+Dec 08 15:21:23 46-37-115-3.febzen.com python[144499]: INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)

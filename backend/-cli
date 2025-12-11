@@ -1,0 +1,70 @@
+[0;1;32m●[0m redis-server.service - Advanced key-value store
+     Loaded: loaded (/lib/systemd/system/redis-server.service; enabled; vendor preset: enabled)
+     Active: [0;1;32mactive (running)[0m since Tue 2025-12-09 03:20:23 UTC; 9s ago
+       Docs: http://redis.io/documentation,
+             man:redis-server(1)
+   Main PID: 155604 (redis-server)
+     Status: "Ready to accept connections"
+      Tasks: 5 (limit: 19071)
+     Memory: 2.7M
+        CPU: 160ms
+     CGroup: /system.slice/redis-server.service
+             └─155604 "/usr/bin/redis-server 127.0.0.1:6379" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+
+Dec 09 03:20:22 46-37-115-3.febzen.com systemd[1]: Starting Advanced key-value store...
+Dec 09 03:20:23 46-37-115-3.febzen.com systemd[1]: Started Advanced key-value store.
+
+● cryptosignal-sentiment.service - CryptoSignal Sentiment Worker
+     Loaded: loaded (/etc/systemd/system/cryptosignal-sentiment.service; enabled; vendor preset: enabled)
+     Active: activating (auto-restart) (Result: exit-code) since Tue 2025-12-09 03:20:28 UTC; 3s ago
+    Process: 155664 ExecStart=/opt/cryptosignal-app/backend/venv/bin/python worker_sentiment.py [0;1;31m(code=exited, status=1/FAILURE)[0m
+   Main PID: 155664 (code=exited, status=1/FAILURE)
+        CPU: 153ms
+
+[0;1;32m●[0m cryptosignal-frontend.service - CryptoSignal AI Frontend
+     Loaded: loaded (/etc/systemd/system/cryptosignal-frontend.service; enabled; vendor preset: enabled)
+     Active: [0;1;32mactive (running)[0m since Tue 2025-12-09 03:20:24 UTC; 7s ago
+   Main PID: 155640 (node)
+      Tasks: 11 (limit: 19071)
+     Memory: 32.7M
+        CPU: 1.063s
+     CGroup: /system.slice/cryptosignal-frontend.service
+             └─155640 /root/.nvm/versions/node/v18.20.8/bin/node /root/.nvm/versions/node/v18.20.8/bin/serve -s dist -l 3000
+
+Dec 09 03:20:24 46-37-115-3.febzen.com systemd[1]: Started CryptoSignal AI Frontend.
+Dec 09 03:20:25 46-37-115-3.febzen.com node[155640]:  INFO  Accepting connections at http://localhost:3000
+
+[0;1;32m●[0m cryptosignal-backend.service - CryptoSignal AI Backend
+     Loaded: loaded (/etc/systemd/system/cryptosignal-backend.service; enabled; vendor preset: enabled)
+     Active: [0;1;32mactive (running)[0m since Tue 2025-12-09 03:20:24 UTC; 8s ago
+   Main PID: 155635 (python)
+      Tasks: 2 (limit: 19071)
+     Memory: 54.3M
+        CPU: 2.447s
+     CGroup: /system.slice/cryptosignal-backend.service
+             └─155635 /opt/cryptosignal-app/backend/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000
+
+Dec 09 03:20:24 46-37-115-3.febzen.com systemd[1]: Started CryptoSignal AI Backend.
+Dec 09 03:20:26 46-37-115-3.febzen.com python[155635]: INFO:     Started server process [155635]
+Dec 09 03:20:26 46-37-115-3.febzen.com python[155635]: INFO:     Waiting for application startup.
+
+● cryptosignal-prices.service - CryptoSignal Price Worker
+     Loaded: loaded (/etc/systemd/system/cryptosignal-prices.service; enabled; vendor preset: enabled)
+     Active: activating (auto-restart) (Result: exit-code) since Tue 2025-12-09 03:20:28 UTC; 3s ago
+    Process: 155662 ExecStart=/opt/cryptosignal-app/backend/venv/bin/python worker_prices.py [0;1;31m(code=exited, status=1/FAILURE)[0m
+   Main PID: 155662 (code=exited, status=1/FAILURE)
+        CPU: 207ms
+
+● cryptosignal-futures.service - CryptoSignal Futures Worker
+     Loaded: loaded (/etc/systemd/system/cryptosignal-futures.service; enabled; vendor preset: enabled)
+     Active: activating (auto-restart) (Result: exit-code) since Tue 2025-12-09 03:20:28 UTC; 3s ago
+    Process: 155661 ExecStart=/opt/cryptosignal-app/backend/venv/bin/python worker_futures.py [0;1;31m(code=exited, status=1/FAILURE)[0m
+   Main PID: 155661 (code=exited, status=1/FAILURE)
+        CPU: 153ms
+
+● cryptosignal-news.service - CryptoSignal News Worker
+     Loaded: loaded (/etc/systemd/system/cryptosignal-news.service; enabled; vendor preset: enabled)
+     Active: activating (auto-restart) (Result: exit-code) since Tue 2025-12-09 03:20:28 UTC; 3s ago
+    Process: 155663 ExecStart=/opt/cryptosignal-app/backend/venv/bin/python worker_news.py [0;1;31m(code=exited, status=1/FAILURE)[0m
+   Main PID: 155663 (code=exited, status=1/FAILURE)
+        CPU: 206ms
