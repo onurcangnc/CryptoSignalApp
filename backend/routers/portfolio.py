@@ -220,20 +220,21 @@ async def analyze_portfolio(user: dict = Depends(require_llm_quota)):
     # LLM ile analiz
     try:
         from services.llm_service import llm_service
-        
+
         if not llm_service.is_available():
             # Fallback: Basit analiz
             analysis = generate_simple_analysis(portfolio_data, total_value, total_invested, fear_greed)
         else:
             analysis = await llm_service.analyze_portfolio(
                 portfolio_data,
-                {"fear_greed": fear_greed}
+                {"fear_greed": fear_greed},
+                user_id=user['id']  # Analytics tracking için
             )
-            
+
             if not analysis:
                 analysis = generate_simple_analysis(portfolio_data, total_value, total_invested, fear_greed)
-        
-        # LLM kullanımını kaydet
+
+        # LLM kullanımını kaydet (quota tracking)
         increment_llm_usage(user['id'], today_str())
         
         # Cache'e kaydet (1 saat)

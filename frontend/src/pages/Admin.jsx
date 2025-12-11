@@ -472,17 +472,44 @@ const UsersTab = ({ stats, lang }) => {
 // WORKERS TAB
 // ============================================================================
 const WorkersTab = ({ stats, lang }) => {
+  // Parse worker update time - handle both string dates and JSON objects
+  const parseWorkerDate = (value) => {
+    if (!value) return null
+
+    // If it's a string, try to parse as date directly
+    if (typeof value === 'string') {
+      // Sunucu UTC zamanı gönderiyor, 'Z' ekleyerek UTC olarak parse et
+      const utcValue = value.endsWith('Z') ? value : value + 'Z'
+      const date = new Date(utcValue)
+      if (!isNaN(date.getTime())) return date
+    }
+
+    // If it's an object (JSON parsed), look for updated/timestamp field
+    if (typeof value === 'object') {
+      const updated = value.updated || value.timestamp || value.date
+      if (updated) {
+        const utcValue = updated.endsWith('Z') ? updated : updated + 'Z'
+        const date = new Date(utcValue)
+        if (!isNaN(date.getTime())) return date
+      }
+    }
+
+    return null
+  }
+
   return (
     <div className="space-y-4">
-      {stats?.workers && Object.entries(stats.workers).map(([name, updated]) => {
+      {stats?.workers && Object.entries(stats.workers).map(([name, value]) => {
+        const date = parseWorkerDate(value)
         // Worker'ların 20 dakika içinde güncellenmiş olması yeterli
-        const date = new Date(updated)
-        const isActive = !isNaN(date.getTime()) && (new Date() - date) < 20 * 60 * 1000
+        const isActive = date && (Date.now() - date.getTime()) < 20 * 60 * 1000
+        const displayValue = date ? date.toISOString() : (typeof value === 'string' ? value : null)
+
         return (
           <WorkerCard
             key={name}
             name={name}
-            updated={updated}
+            updated={displayValue}
             isActive={isActive}
             lang={lang}
           />

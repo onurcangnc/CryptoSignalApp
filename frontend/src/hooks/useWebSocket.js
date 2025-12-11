@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 
-const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:8000/ws'
+// Dynamic WebSocket URL based on current host (same logic as API)
+const WS_URL = window.location.hostname === 'localhost'
+  ? 'ws://localhost:8000/ws'
+  : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
 
 export const useWebSocket = (onMessage) => {
   const ws = useRef(null)

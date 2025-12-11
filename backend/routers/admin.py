@@ -64,12 +64,13 @@ async def get_admin_stats(user: dict = Depends(get_admin_user)):
     profit_margin = ((mrr - llm_cost_month) / mrr * 100) if mrr > 0 else 0
 
     # Redis'den worker durumları
+    # fear_greed is a JSON object, get updated timestamp from sentiment_updated
     workers = {
         "prices": redis_client.get("prices_updated"),
         "futures": redis_client.get("futures_updated"),
         "news": redis_client.get("news_updated"),
         "signals": redis_client.get("signals_updated"),
-        "fear_greed": redis_client.get("fear_greed")
+        "fear_greed": redis_client.get("sentiment_updated")
     }
 
     # Coin ve sinyal sayıları

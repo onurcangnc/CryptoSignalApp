@@ -387,7 +387,7 @@ async def redis_sync():
     while True:
         try:
             if prices_data:
-                r.set("prices", json.dumps(prices_data))
+                r.set("prices_data", json.dumps(prices_data))
                 r.set("prices_updated", datetime.utcnow().isoformat())
                 r.set("prices_count", len(prices_data))
                 

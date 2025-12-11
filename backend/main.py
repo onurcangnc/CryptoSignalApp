@@ -46,7 +46,8 @@ from routers import (
     ai_summary_router,
     websocket_router,
     signal_stats_router,
-    payment_router
+    payment_router,
+    ads_router
 )
 
 # =============================================================================
@@ -112,6 +113,9 @@ app.include_router(payment_router)
 # WebSocket: /ws, /ws/market, /ws/realtime
 app.include_router(websocket_router)
 
+# Ads: /api/ads/*
+app.include_router(ads_router)
+
 # =============================================================================
 # STARTUP EVENT - WebSocket Price Broadcast
 # =============================================================================
@@ -145,7 +149,7 @@ async def root():
 async def health_check():
     """Health check endpoint"""
     from database import redis_client
-    
+
     health = {
         "status": "ok",
         "version": APP_VERSION,
@@ -155,14 +159,14 @@ async def health_check():
             "redis": "ok"
         }
     }
-    
+
     # Redis check
     try:
         redis_client.ping()
     except:
         health["services"]["redis"] = "error"
         health["status"] = "degraded"
-    
+
     return health
 
 

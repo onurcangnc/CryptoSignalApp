@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(npm run build:*)",
+      "Bash(where npm:*)",
+      "Bash(ssh root@31.97.129.113 \"cat /etc/systemd/system/cryptosignal-backend.service\")"
+    ]
+  }
+}

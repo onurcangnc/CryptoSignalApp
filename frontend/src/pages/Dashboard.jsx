@@ -61,9 +61,11 @@ const Dashboard = ({ t, lang, user }) => {
 
       const [coinsResp, pricesResp, fgResp, statsResp, signalsResp, portfolioResp] = await Promise.all(requests)
 
+      // Parse all responses once
+      let coinsData = null
       if (coinsResp.ok) {
-        const data = await coinsResp.json()
-        setCoins(data.details || [])
+        coinsData = await coinsResp.json()
+        setCoins(coinsData.details || [])
       }
       if (pricesResp.ok) {
         const data = await pricesResp.json()
@@ -88,10 +90,9 @@ const Dashboard = ({ t, lang, user }) => {
         }
       }
 
-      // Calculate market data from coins
-      if (coinsResp.ok) {
-        const data = await coinsResp.json()
-        const allCoins = data.details || []
+      // Calculate market data from coins (reuse already parsed data)
+      if (coinsData) {
+        const allCoins = coinsData.details || []
         const totalMarketCap = allCoins.reduce((sum, c) => sum + (c.market_cap || 0), 0)
         const btcCoin = allCoins.find(c => c.symbol === 'BTC' || c.id === 'bitcoin')
         const btcDominance = btcCoin && totalMarketCap > 0
@@ -325,32 +326,10 @@ const Dashboard = ({ t, lang, user }) => {
           <div className="space-y-2">
             {recentSignals.length > 0 ? (
               recentSignals.slice(0, 5).map((signal, idx) => {
-                // Format date properly
-                const formatDate = (dateStr) => {
-                  if (!dateStr) return '-'
-                  try {
-                    const date = new Date(dateStr)
-                    if (isNaN(date.getTime())) return '-'
-
-                    const now = new Date()
-                    const diffMs = now - date
-                    const diffMins = Math.floor(diffMs / 60000)
-                    const diffHours = Math.floor(diffMs / 3600000)
-                    const diffDays = Math.floor(diffMs / 86400000)
-
-                    if (diffMins < 60) {
-                      return lang === 'tr' ? `${diffMins} dk önce` : `${diffMins}m ago`
-                    } else if (diffHours < 24) {
-                      return lang === 'tr' ? `${diffHours} saat önce` : `${diffHours}h ago`
-                    } else if (diffDays < 7) {
-                      return lang === 'tr' ? `${diffDays} gün önce` : `${diffDays}d ago`
-                    } else {
-                      return date.toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US')
-                    }
-                  } catch {
-                    return '-'
-                  }
-                }
+                // Get coin symbol and price
+                const coinSymbol = signal.coin || signal.symbol || '?'
+                const priceData = prices[coinSymbol] || {}
+                const coinPrice = priceData.price || signal.price || 0
 
                 // Format confidence
                 const getConfidence = () => {
@@ -371,18 +350,18 @@ const Dashboard = ({ t, lang, user }) => {
                   >
                     <div className="flex items-center gap-3">
                       <span className={`px-2 py-1 rounded text-xs font-bold ${
-                        signalType === 'BUY' || signalType === 'AL'
+                        signalType === 'BUY' || signalType === 'AL' || signalType === 'STRONG_BUY'
                           ? 'bg-green-500/20 text-green-400'
-                          : signalType === 'SELL' || signalType === 'SAT'
+                          : signalType === 'SELL' || signalType === 'SAT' || signalType === 'STRONG_SELL'
                           ? 'bg-red-500/20 text-red-400'
                           : 'bg-yellow-500/20 text-yellow-400'
                       }`}>
-                        {signalType}
+                        {signalType === 'STRONG_BUY' ? 'BUY' : signalType === 'STRONG_SELL' ? 'SELL' : signalType}
                       </span>
                       <div>
-                        <div className="font-medium text-white text-sm">{signal.coin || signal.symbol || '?'}</div>
+                        <div className="font-medium text-white text-sm">{coinSymbol}</div>
                         <div className="text-xs text-gray-500">
-                          {formatDate(signal.created_at || signal.timestamp || signal.date)}
+                          {coinPrice > 0 ? formatPrice(coinPrice) : '-'}
                         </div>
                       </div>
                     </div>
