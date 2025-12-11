@@ -44,7 +44,9 @@ from routers import (
     admin_router,
     ai_stats_router,
     ai_summary_router,
-    websocket_router
+    websocket_router,
+    signal_stats_router,
+    payment_router
 )
 
 # =============================================================================
@@ -101,8 +103,28 @@ app.include_router(ai_stats_router)
 # AI Summary: /api/ai-summary/*
 app.include_router(ai_summary_router)
 
+# Signal Stats: /api/signal-stats, /api/signal-performance
+app.include_router(signal_stats_router)
+
+# Payment: /api/payment/manual-notification
+app.include_router(payment_router)
+
 # WebSocket: /ws, /ws/market, /ws/realtime
 app.include_router(websocket_router)
+
+# =============================================================================
+# STARTUP EVENT - WebSocket Price Broadcast
+# =============================================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Start background tasks"""
+    import asyncio
+    from routers.websocket import price_update_loop
+
+    # Start WebSocket price broadcast loop in background
+    asyncio.create_task(price_update_loop())
+    print("[WS] Price broadcast loop started")
 
 # =============================================================================
 # ROOT ENDPOINTS

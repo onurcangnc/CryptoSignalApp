@@ -31,6 +31,8 @@ restart_service cryptosignal-prices
 restart_service cryptosignal-futures
 restart_service cryptosignal-news
 restart_service cryptosignal-sentiment
+restart_service cryptosignal-ai-analyst
+restart_service cryptosignal-signal-checker
 restart_service cryptosignal-telegram
 
 echo ""
@@ -47,7 +49,16 @@ echo "================================="
 echo "📊 Status Check:"
 echo ""
 
-for svc in redis-server cryptosignal-backend cryptosignal-frontend cryptosignal-prices cryptosignal-futures cryptosignal-news cryptosignal-sentiment cryptosignal-telegram; do
+for svc in redis-server \
+           cryptosignal-backend \
+           cryptosignal-frontend \
+           cryptosignal-prices \
+           cryptosignal-futures \
+           cryptosignal-news \
+           cryptosignal-sentiment \
+           cryptosignal-ai-analyst \
+           cryptosignal-signal-checker \
+           cryptosignal-telegram; do
     status=$(systemctl is-active $svc 2>/dev/null)
     if [ "$status" = "active" ]; then
         echo -e "  ${GREEN}✅${NC} $svc"

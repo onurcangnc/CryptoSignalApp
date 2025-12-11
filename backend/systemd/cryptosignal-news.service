@@ -1,0 +1,21 @@
+[Unit]
+Description=CryptoSignal News Worker
+After=network.target redis-server.service
+Requires=redis-server.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/cryptosignal-app/backend
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/usr/bin/python3 worker_news.py
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cryptosignal-news
+
+[Install]
+WantedBy=multi-user.target

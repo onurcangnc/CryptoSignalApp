@@ -3,27 +3,50 @@ import { useState, useEffect } from 'react'
 import api from '../api'
 import { formatPrice, formatNumber, formatChange } from '../utils/formatters'
 import AnalysisModal from '../components/modals/AnalysisModal'
+import { useWebSocket } from '../hooks/useWebSocket'
 
 const Dashboard = ({ t, lang }) => {
   const [coins, setCoins] = useState([])
   const [prices, setPrices] = useState({})
   const [fearGreed, setFearGreed] = useState(null)
+  const [signalStats, setSignalStats] = useState(null)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
 
+  // WebSocket connection for real-time price updates
+  const { isConnected } = useWebSocket((data) => {
+    if (data.type === 'init' && data.prices) {
+      // Initial data from WebSocket
+      setPrices(data.prices)
+      if (data.fear_greed) setFearGreed(data.fear_greed)
+    } else if (data.type === 'price_update' && data.prices) {
+      // Real-time price updates
+      setPrices(prevPrices => ({
+        ...prevPrices,
+        ...data.prices
+      }))
+    }
+  })
+
   useEffect(() => {
     fetchData()
-    const interval = setInterval(fetchPrices, 5000)
+    // Fallback: Still poll if WebSocket disconnects
+    const interval = setInterval(() => {
+      if (!isConnected) {
+        fetchPrices()
+      }
+    }, 5000)
     return () => clearInterval(interval)
-  }, [])
+  }, [isConnected])
 
   const fetchData = async () => {
     try {
-      const [coinsResp, pricesResp, fgResp] = await Promise.all([
+      const [coinsResp, pricesResp, fgResp, statsResp] = await Promise.all([
         api.get('/api/coins'),
         api.get('/api/prices'),
-        api.get('/api/fear-greed')
+        api.get('/api/fear-greed'),
+        api.get('/api/signal-stats?days=30')
       ])
       if (coinsResp.ok) {
         const data = await coinsResp.json()
@@ -37,6 +60,10 @@ const Dashboard = ({ t, lang }) => {
       if (fgResp.ok) {
         const data = await fgResp.json()
         setFearGreed(data)
+      }
+      if (statsResp.ok) {
+        const data = await statsResp.json()
+        setSignalStats(data)
       }
     } catch (e) {
       console.error('Dashboard fetch error:', e)
@@ -90,20 +117,51 @@ const Dashboard = ({ t, lang }) => {
 
   return (
     <div className="space-y-6">
-      {/* Fear & Greed */}
-      {fearGreed && (
-        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-          <h3 className="text-gray-400 text-sm mb-2">{lang === 'tr' ? 'Korku & Açgözlülük' : 'Fear & Greed'}</h3>
-          <div className="flex items-center gap-4">
-            <span className={`text-4xl font-bold ${getFearGreedColor(fearGreed.value)}`}>
-              {fearGreed.value}
-            </span>
-            <span className={`text-lg ${getFearGreedColor(fearGreed.value)}`}>
-              {getFearGreedLabel(fearGreed.value)}
-            </span>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Fear & Greed */}
+        {fearGreed && (
+          <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
+            <h3 className="text-gray-400 text-sm mb-2">{lang === 'tr' ? 'Korku & Açgözlülük' : 'Fear & Greed'}</h3>
+            <div className="flex items-center gap-4">
+              <span className={`text-4xl font-bold ${getFearGreedColor(fearGreed.value)}`}>
+                {fearGreed.value}
+              </span>
+              <span className={`text-lg ${getFearGreedColor(fearGreed.value)}`}>
+                {getFearGreedLabel(fearGreed.value)}
+              </span>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* AI Signal Stats */}
+        {signalStats && (
+          <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
+            <h3 className="text-gray-400 text-sm mb-2 flex items-center gap-2">
+              🎯 {lang === 'tr' ? 'AI Sinyal Doğruluğu' : 'AI Signal Accuracy'}
+              <span className="text-xs text-gray-500">(30 gün)</span>
+            </h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-4xl font-bold text-green-500">
+                  {signalStats.success_rate ? `${signalStats.success_rate.toFixed(1)}%` : 'N/A'}
+                </div>
+                <div className="text-sm text-gray-400 mt-1">
+                  {signalStats.profitable || 0}/{signalStats.total || 0} {lang === 'tr' ? 'kârlı' : 'profitable'}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-400">
+                  {lang === 'tr' ? 'Ort. Kazanç' : 'Avg Profit'}
+                </div>
+                <div className="text-lg font-bold text-green-400">
+                  +{signalStats.avg_profit_pct ? signalStats.avg_profit_pct.toFixed(1) : '0'}%
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Search */}
       <div className="relative">

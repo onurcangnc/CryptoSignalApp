@@ -14,6 +14,8 @@ from .admin import router as admin_router
 from .ai_stats import router as ai_stats_router
 from .ai_summary import router as ai_summary_router
 from .websocket import router as websocket_router
+from .signal_stats import router as signal_stats_router
+from .payment import router as payment_router
 
 __all__ = [
     'auth_router',
@@ -24,5 +26,7 @@ __all__ = [
     'admin_router',
     'ai_stats_router',
     'ai_summary_router',
-    'websocket_router'
+    'websocket_router',
+    'signal_stats_router',
+    'payment_router'
 ]

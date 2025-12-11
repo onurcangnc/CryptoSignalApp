@@ -1,0 +1,22 @@
+[Unit]
+Description=CryptoSignal Frontend (Nginx)
+After=network.target
+
+[Service]
+Type=forking
+User=root
+WorkingDirectory=/opt/cryptosignal-app/frontend
+ExecStart=/usr/sbin/nginx -c /opt/cryptosignal-app/frontend/nginx.conf
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s QUIT $MAINPID
+PIDFile=/var/run/cryptosignal-frontend.pid
+Restart=on-failure
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cryptosignal-frontend
+
+[Install]
+WantedBy=multi-user.target

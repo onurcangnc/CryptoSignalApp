@@ -16,6 +16,7 @@ import AISummary from './pages/AISummary'
 import News from './pages/News'
 import Portfolio from './pages/Portfolio'
 import Admin from './pages/Admin'
+import Premium from './pages/Premium'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -88,6 +89,7 @@ export default function App() {
         {current === 'ai-summary' && <AISummary t={t} lang={lang} user={user} />}
         {current === 'news' && <News t={t} lang={lang} />}
         {current === 'portfolio' && <Portfolio t={t} lang={lang} user={user} />}
+        {current === 'premium' && <Premium user={user} setCurrent={setCurrent} />}
         {current === 'admin' && <Admin t={t} lang={lang} user={user} />}
       </main>
 

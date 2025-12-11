@@ -63,6 +63,9 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+# Import signal tracking
+from database import save_signal_track
+
 # ============================================
 # HABER ÖZETLEME
 # ============================================
@@ -205,6 +208,31 @@ JSON formatında yanıt ver:
             analysis = json.loads(json_str.strip())
             analysis['analyzed_at'] = datetime.utcnow().isoformat()
             analysis['news_count'] = len(coin_news)
+
+            # Sinyalleri tracking tablosuna kaydet
+            try:
+                timeframes = analysis.get('timeframes', {})
+                for tf, tf_data in timeframes.items():
+                    signal = tf_data.get('signal', 'BEKLE')
+                    signal_tr = tf_data.get('signal_tr', 'BEKLE')
+                    confidence = tf_data.get('confidence', 50)
+                    target = tf_data.get('target_price', 0)
+                    stop = tf_data.get('stop_loss', 0)
+
+                    if signal and target > 0 and stop > 0:
+                        save_signal_track(
+                            symbol=symbol,
+                            signal=signal,
+                            signal_tr=signal_tr,
+                            confidence=confidence,
+                            entry_price=price,
+                            target_price=target,
+                            stop_loss=stop,
+                            timeframe=tf
+                        )
+            except Exception as track_err:
+                print(f"[AI] Signal tracking error for {symbol}: {track_err}")
+
             return analysis
         except Exception as e:
             print(f"[AI] Parse error for {symbol}: {e}")

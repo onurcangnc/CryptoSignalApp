@@ -4,6 +4,7 @@ import api from '../api'
 const Signals = ({ t, lang }) => {
   const [signals, setSignals] = useState({})
   const [stats, setStats] = useState({ total: 0, buy: 0, sell: 0, hold: 0 })
+  const [signalPerf, setSignalPerf] = useState(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
@@ -14,6 +15,7 @@ const Signals = ({ t, lang }) => {
   // Timeframe değiştiğinde yeniden yükle
   useEffect(() => {
     loadSignals()
+    loadPerformance()
   }, [timeframe])
 
   // Her 60 saniyede bir güncelle
@@ -21,6 +23,18 @@ const Signals = ({ t, lang }) => {
     const interval = setInterval(loadSignals, 60000)
     return () => clearInterval(interval)
   }, [timeframe])
+
+  const loadPerformance = async () => {
+    try {
+      const resp = await api.get('/api/signal-stats?days=30')
+      if (resp.ok) {
+        const data = await resp.json()
+        setSignalPerf(data)
+      }
+    } catch (err) {
+      console.error('Performance error:', err)
+    }
+  }
 
   const loadSignals = async () => {
     try {
@@ -220,6 +234,44 @@ const Signals = ({ t, lang }) => {
           <div className="text-xs text-red-600">SAT</div>
         </div>
       </div>
+
+      {/* Signal Performance (30 days) */}
+      {signalPerf && (
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              🎯 {lang === 'tr' ? 'Sinyal Performansı' : 'Signal Performance'}
+              <span className="text-xs text-gray-500 font-normal">(Son 30 Gün)</span>
+            </h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 backdrop-blur">
+              <div className="text-2xl font-bold text-green-600">
+                {signalPerf.success_rate ? `${signalPerf.success_rate.toFixed(1)}%` : 'N/A'}
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Başarı Oranı</div>
+            </div>
+            <div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 backdrop-blur">
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {signalPerf.profitable || 0}/{signalPerf.total || 0}
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Kârlı/Toplam</div>
+            </div>
+            <div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 backdrop-blur">
+              <div className="text-2xl font-bold text-green-500">
+                +{signalPerf.avg_profit_pct ? signalPerf.avg_profit_pct.toFixed(1) : '0'}%
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Ort. Kâr</div>
+            </div>
+            <div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 backdrop-blur">
+              <div className="text-2xl font-bold text-red-500">
+                {signalPerf.avg_loss_pct ? signalPerf.avg_loss_pct.toFixed(1) : '0'}%
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Ort. Zarar</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search & Filter */}
       <div className="flex flex-wrap gap-3">

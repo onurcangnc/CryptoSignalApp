@@ -15,7 +15,12 @@ const Nav = ({ current, setCurrent, user, logout, lang, setLang, t }) => {
     { id: 'news', icon: '📰', label: t.news },
     { id: 'portfolio', icon: '💼', label: t.portfolio },
   ]
-  
+
+  // Premium butonu (sadece free kullanıcılar için)
+  if (user?.tier === 'free' || !user?.tier) {
+    navItems.push({ id: 'premium', icon: '⭐', label: lang === 'tr' ? 'Premium' : 'Premium', isPremium: true })
+  }
+
   if (user?.tier === 'admin') {
     navItems.push({ id: 'admin', icon: '⚙️', label: t.admin })
   }
@@ -70,7 +75,9 @@ const Nav = ({ current, setCurrent, user, logout, lang, setLang, t }) => {
                 key={item.id}
                 onClick={() => handleNavClick(item.id)}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  current === item.id
+                  item.isPremium
+                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:from-yellow-600 hover:to-orange-600 shadow-lg'
+                    : current === item.id
                     ? 'bg-yellow-500/20 text-yellow-400'
                     : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
                 }`}
@@ -201,7 +208,9 @@ const Nav = ({ current, setCurrent, user, logout, lang, setLang, t }) => {
                   key={item.id}
                   onClick={() => handleNavClick(item.id)}
                   className={`flex flex-col items-center justify-center p-3 rounded-lg text-xs font-medium transition-all ${
-                    current === item.id
+                    item.isPremium
+                      ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg'
+                      : current === item.id
                       ? 'bg-yellow-500/20 text-yellow-400'
                       : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'
                   }`}

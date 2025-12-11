@@ -159,6 +159,67 @@ def init_db():
             )
         ''')
 
+        # Signal Tracking (Sinyal doğruluk takibi)
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS signal_tracking (
+                id TEXT PRIMARY KEY,
+                symbol TEXT,
+                signal TEXT,
+                signal_tr TEXT,
+                confidence INTEGER,
+                entry_price REAL,
+                target_price REAL,
+                stop_loss REAL,
+                timeframe TEXT,
+                created_at TEXT,
+                check_date TEXT,
+                actual_price REAL,
+                result TEXT,
+                profit_loss_pct REAL,
+                is_successful INTEGER
+            )
+        ''')
+
+        # Pending Payments (Bekleyen ödemeler)
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS pending_payments (
+                payment_id TEXT PRIMARY KEY,
+                user_id TEXT,
+                order_id TEXT UNIQUE,
+                tier TEXT,
+                duration_months INTEGER,
+                amount_usd REAL,
+                created_at TEXT
+            )
+        ''')
+
+        # Payment History (Ödeme geçmişi)
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS payment_history (
+                payment_id TEXT PRIMARY KEY,
+                user_id TEXT,
+                order_id TEXT,
+                tier TEXT,
+                amount_usd REAL,
+                amount_crypto REAL,
+                currency TEXT,
+                created_at TEXT
+            )
+        ''')
+
+        # User subscription info (users tablosuna eklenmeli ama şimdilik ayrı tablo)
+        c.execute('''
+            ALTER TABLE users ADD COLUMN subscription_expires TEXT
+        ''' if False else '''
+            CREATE TABLE IF NOT EXISTS user_subscriptions (
+                user_id TEXT PRIMARY KEY,
+                tier TEXT,
+                expires_at TEXT,
+                auto_renew INTEGER DEFAULT 0,
+                updated_at TEXT
+            )
+        ''')
+
         # Add indexes for performance
         c.execute("""
             CREATE INDEX IF NOT EXISTS idx_llm_usage_user_date
@@ -175,6 +236,14 @@ def init_db():
         c.execute("""
             CREATE INDEX IF NOT EXISTS idx_llm_analytics_user
             ON llm_analytics(user_id, created_at DESC)
+        """)
+        c.execute("""
+            CREATE INDEX IF NOT EXISTS idx_signal_tracking_symbol
+            ON signal_tracking(symbol, created_at DESC)
+        """)
+        c.execute("""
+            CREATE INDEX IF NOT EXISTS idx_signal_tracking_check
+            ON signal_tracking(check_date, is_successful)
         """)
 
         # Default invites
@@ -558,3 +627,185 @@ def get_portfolio_simulations(user_id: str, limit: int = 10) -> List[Dict]:
             }
             for r in rows
         ]
+
+
+# =============================================================================
+# SIGNAL TRACKING CRUD
+# =============================================================================
+
+def save_signal_track(symbol: str, signal: str, signal_tr: str, confidence: int,
+                      entry_price: float, target_price: float, stop_loss: float,
+                      timeframe: str) -> str:
+    """Sinyal kaydı oluştur"""
+    from uuid import uuid4
+    signal_id = str(uuid4())
+
+    # Check date hesapla (timeframe'e göre)
+    check_days = {
+        "1d": 1,
+        "1w": 7,
+        "3m": 90,
+        "6m": 180,
+        "1y": 365
+    }
+    days = check_days.get(timeframe, 7)
+    check_date = (datetime.utcnow() + timedelta(days=days)).isoformat()
+
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO signal_tracking VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL)",
+            (signal_id, symbol, signal, signal_tr, confidence, entry_price,
+             target_price, stop_loss, timeframe, datetime.utcnow().isoformat(),
+             check_date)
+        )
+        conn.commit()
+
+    return signal_id
+
+
+def check_signal_results() -> List[Dict]:
+    """Kontrol tarihi gelen sinyalleri değerlendir"""
+    with get_db() as conn:
+        now = datetime.utcnow().isoformat()
+
+        # Henüz kontrol edilmemiş ve tarihi gelmiş sinyaller
+        rows = conn.execute(
+            "SELECT * FROM signal_tracking WHERE check_date <= ? AND result IS NULL",
+            (now,)
+        ).fetchall()
+
+        return [dict(row) for row in rows]
+
+
+def update_signal_result(signal_id: str, actual_price: float) -> None:
+    """Sinyal sonucunu güncelle"""
+    with get_db() as conn:
+        # Sinyal bilgilerini al
+        row = conn.execute(
+            "SELECT * FROM signal_tracking WHERE id=?",
+            (signal_id,)
+        ).fetchone()
+
+        if not row:
+            return
+
+        entry_price = row["entry_price"]
+        target_price = row["target_price"]
+        stop_loss = row["stop_loss"]
+        signal = row["signal"]
+
+        # Kar/Zarar hesapla
+        profit_loss_pct = ((actual_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+
+        # Başarılı mı?
+        is_successful = 0
+        result = ""
+
+        if signal in ["BUY", "AL", "STRONG_BUY", "GÜÇLÜ AL"]:
+            # AL sinyali - fiyat yükseldi mi?
+            if actual_price >= target_price:
+                is_successful = 1
+                result = "TARGET_HIT"
+            elif actual_price <= stop_loss:
+                is_successful = 0
+                result = "STOP_LOSS"
+            elif actual_price > entry_price:
+                is_successful = 1
+                result = "PROFIT"
+            else:
+                is_successful = 0
+                result = "LOSS"
+
+        elif signal in ["SELL", "SAT", "STRONG_SELL", "GÜÇLÜ SAT"]:
+            # SAT sinyali - fiyat düştü mü?
+            if actual_price <= target_price:
+                is_successful = 1
+                result = "TARGET_HIT"
+            elif actual_price >= stop_loss:
+                is_successful = 0
+                result = "STOP_LOSS"
+            elif actual_price < entry_price:
+                is_successful = 1
+                result = "PROFIT"
+            else:
+                is_successful = 0
+                result = "LOSS"
+
+        else:  # HOLD, BEKLE
+            # Bekle sinyali - stabilite kontrolü
+            if abs(profit_loss_pct) < 5:
+                is_successful = 1
+                result = "STABLE"
+            else:
+                is_successful = 0
+                result = "VOLATILE"
+
+        # Güncelle
+        conn.execute(
+            """UPDATE signal_tracking
+               SET actual_price=?, result=?, profit_loss_pct=?, is_successful=?
+               WHERE id=?""",
+            (actual_price, result, profit_loss_pct, is_successful, signal_id)
+        )
+        conn.commit()
+
+
+def get_signal_success_rate(days: int = 30, symbol: str = None) -> Dict:
+    """Sinyal başarı oranı istatistikleri"""
+    with get_db() as conn:
+        # Tarih filtresi
+        since = (datetime.utcnow() - timedelta(days=days)).isoformat()
+
+        if symbol:
+            # Belirli bir coin için
+            total = conn.execute(
+                "SELECT COUNT(*) as cnt FROM signal_tracking WHERE symbol=? AND created_at >= ? AND result IS NOT NULL",
+                (symbol, since)
+            ).fetchone()["cnt"]
+
+            successful = conn.execute(
+                "SELECT COUNT(*) as cnt FROM signal_tracking WHERE symbol=? AND created_at >= ? AND is_successful=1",
+                (symbol, since)
+            ).fetchone()["cnt"]
+        else:
+            # Tüm coinler
+            total = conn.execute(
+                "SELECT COUNT(*) as cnt FROM signal_tracking WHERE created_at >= ? AND result IS NOT NULL",
+                (since,)
+            ).fetchone()["cnt"]
+
+            successful = conn.execute(
+                "SELECT COUNT(*) as cnt FROM signal_tracking WHERE created_at >= ? AND is_successful=1",
+                (since,)
+            ).fetchone()["cnt"]
+
+        success_rate = (successful / total * 100) if total > 0 else 0
+
+        # Sinyal tiplerine göre breakdown
+        signal_breakdown = conn.execute(
+            """SELECT signal, COUNT(*) as total,
+                      SUM(is_successful) as successful,
+                      AVG(profit_loss_pct) as avg_pnl
+               FROM signal_tracking
+               WHERE created_at >= ? AND result IS NOT NULL
+               GROUP BY signal""",
+            (since,)
+        ).fetchall()
+
+        return {
+            "total_signals": total,
+            "successful_signals": successful,
+            "success_rate": round(success_rate, 2),
+            "days": days,
+            "symbol": symbol,
+            "by_signal": [
+                {
+                    "signal": row["signal"],
+                    "total": row["total"],
+                    "successful": row["successful"],
+                    "success_rate": round((row["successful"] / row["total"] * 100) if row["total"] > 0 else 0, 2),
+                    "avg_pnl": round(row["avg_pnl"], 2) if row["avg_pnl"] else 0
+                }
+                for row in signal_breakdown
+            ]
+        }
