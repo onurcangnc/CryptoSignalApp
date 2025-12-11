@@ -16,6 +16,8 @@ const Dashboard = ({ t, lang, user }) => {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 100
 
   // Telegram bot username (user bot, not admin bot)
   const TELEGRAM_BOT_USERNAME = 'cryptosignalanalyzer_bot'
@@ -127,7 +129,17 @@ const Dashboard = ({ t, lang, user }) => {
       return symbol.toLowerCase().includes(search.toLowerCase()) ||
              name.toLowerCase().includes(search.toLowerCase())
     })
-    .slice(0, 50)
+
+  // Pagination
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = startIndex + ITEMS_PER_PAGE
+  const paginatedCoins = filtered.slice(startIndex, endIndex)
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search])
 
   // Get trending coins (top 5 movers by 24h change)
   const trending = [...coins]
@@ -500,12 +512,13 @@ const Dashboard = ({ t, lang, user }) => {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((coin, idx) => {
+            {paginatedCoins.map((coin, idx) => {
               const symbol = coin.symbol || coin.id?.toUpperCase() || '?'
               const priceData = prices[symbol] || {}
               const price = priceData.price || coin.price || 0
               const change24h = priceData.change_24h ?? coin.change_24h ?? 0
               const change7d = coin.change_7d ?? 0
+              const actualIndex = startIndex + idx
 
               return (
                 <tr
@@ -513,7 +526,7 @@ const Dashboard = ({ t, lang, user }) => {
                   onClick={() => setSelected(coin)}
                   className="border-t border-gray-700/50 hover:bg-gray-700/30 cursor-pointer transition-colors"
                 >
-                  <td className="px-4 py-3 text-gray-500">{coin.rank || idx + 1}</td>
+                  <td className="px-4 py-3 text-gray-500">{coin.rank || actualIndex + 1}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-white">{symbol}</span>
@@ -542,12 +555,76 @@ const Dashboard = ({ t, lang, user }) => {
         </table>
         </div>
 
-        {filtered.length === 0 && (
+        {paginatedCoins.length === 0 && (
           <div className="text-center py-12 text-gray-500">
             {lang === 'tr' ? 'Coin bulunamadı' : 'No coins found'}
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {filtered.length > ITEMS_PER_PAGE && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+          {/* Info */}
+          <div className="text-sm text-gray-400">
+            {lang === 'tr'
+              ? `${startIndex + 1}-${Math.min(endIndex, filtered.length)} arası gösteriliyor (Toplam ${filtered.length})`
+              : `Showing ${startIndex + 1}-${Math.min(endIndex, filtered.length)} of ${filtered.length}`
+            }
+          </div>
+
+          {/* Page buttons */}
+          <div className="flex items-center gap-2">
+            {/* Previous button */}
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-2 rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {lang === 'tr' ? '← Önceki' : '← Previous'}
+            </button>
+
+            {/* Page numbers */}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum
+                if (totalPages <= 5) {
+                  pageNum = i + 1
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i
+                } else {
+                  pageNum = currentPage - 2 + i
+                }
+
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-10 h-10 rounded-lg transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-yellow-500 text-gray-900 font-bold'
+                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Next button */}
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-2 rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {lang === 'tr' ? 'Sonraki →' : 'Next →'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Analysis Modal */}
       {selected && (
