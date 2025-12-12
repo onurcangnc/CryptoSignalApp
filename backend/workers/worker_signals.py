@@ -137,15 +137,26 @@ def _has_indicators(technical: dict) -> bool:
 
     # Check RSI (should be a number 0-100)
     rsi = technical.get("rsi")
-    has_rsi = rsi is not None and rsi not in ("N/A", "na", "NA", "")
+    has_rsi = rsi is not None and rsi not in ("N/A", "na", "NA", "") and isinstance(rsi, (int, float))
 
-    # Check MACD (should be a dict with histogram)
+    # Check MACD (can be dict with histogram OR just a number)
     macd = technical.get("macd")
-    has_macd = macd is not None and isinstance(macd, dict) and macd.get("histogram") is not None
+    if macd is not None:
+        if isinstance(macd, dict):
+            has_macd = macd.get("histogram") is not None
+        elif isinstance(macd, (int, float)):
+            has_macd = True
+        else:
+            has_macd = macd not in ("N/A", "na", "NA", "")
+    else:
+        has_macd = False
 
-    # Check MA (should be a dict with sma/ema values)
+    # Check MA (dict with ma_20, ma_50, ma_200 keys)
     ma = technical.get("ma")
-    has_ma = ma is not None and isinstance(ma, dict) and (ma.get("sma_20") is not None or ma.get("ema_12") is not None)
+    if ma is not None and isinstance(ma, dict):
+        has_ma = ma.get("ma_20") is not None or ma.get("ma_50") is not None
+    else:
+        has_ma = False
 
     # En az bir geçerli indikatör olmalı
     return has_rsi or has_macd or has_ma
