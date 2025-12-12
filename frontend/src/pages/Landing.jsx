@@ -359,8 +359,6 @@ const Landing = ({ onGetStarted, setLang, lang }) => {
               <a
                 key={post.id}
                 href={post.url}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="bg-gray-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-gray-700/50 hover:border-yellow-500/50 transition-all hover:-translate-y-2 hover:shadow-lg hover:shadow-yellow-500/20 cursor-pointer block"
               >
                 <div className="h-48 bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 flex items-center justify-center text-6xl">
