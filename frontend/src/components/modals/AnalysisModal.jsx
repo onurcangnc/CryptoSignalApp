@@ -2,11 +2,14 @@
 import { useState, useEffect } from 'react'
 import api from '../../api'
 import { formatPrice, formatChange } from '../../utils/formatters'
+import TradingViewWidget from '../TradingViewWidget'
 
 const AnalysisModal = ({ symbol, onClose, t, lang }) => {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [showChart, setShowChart] = useState(true)
+  const [chartInterval, setChartInterval] = useState('60') // Default 1 saat
 
   useEffect(() => {
     if (symbol) {
@@ -78,8 +81,8 @@ const AnalysisModal = ({ symbol, onClose, t, lang }) => {
             <div className="space-y-4">
               {/* Signal */}
               <div className={`p-4 rounded-xl text-center ${
-                data.recommendation?.includes('AL') || data.recommendation?.includes('BUY') 
-                  ? 'bg-green-500/20 border border-green-500/50' 
+                data.recommendation?.includes('AL') || data.recommendation?.includes('BUY')
+                  ? 'bg-green-500/20 border border-green-500/50'
                   : data.recommendation?.includes('SAT') || data.recommendation?.includes('SELL')
                   ? 'bg-red-500/20 border border-red-500/50'
                   : 'bg-yellow-500/20 border border-yellow-500/50'
@@ -87,6 +90,62 @@ const AnalysisModal = ({ symbol, onClose, t, lang }) => {
                 <p className="text-2xl font-bold text-white">{data.recommendation}</p>
                 {data.confidence && (
                   <p className="text-gray-300 mt-1">{t.confidence}: {data.confidence}%</p>
+                )}
+              </div>
+
+              {/* TradingView Chart */}
+              <div className="bg-gray-800/50 rounded-xl overflow-hidden">
+                {/* Chart Header */}
+                <div className="flex items-center justify-between p-3 border-b border-gray-700">
+                  <button
+                    onClick={() => setShowChart(!showChart)}
+                    className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
+                  >
+                    <span className="text-lg">📊</span>
+                    <span className="font-medium">
+                      {lang === 'tr' ? 'Grafik' : 'Chart'}
+                    </span>
+                    <span className={`transition-transform ${showChart ? 'rotate-180' : ''}`}>
+                      ▼
+                    </span>
+                  </button>
+
+                  {/* Interval Selector */}
+                  {showChart && (
+                    <div className="flex gap-1">
+                      {[
+                        { label: '1s', value: '1' },
+                        { label: '5d', value: '5' },
+                        { label: '15d', value: '15' },
+                        { label: '1sa', value: '60' },
+                        { label: '4sa', value: '240' },
+                        { label: '1G', value: 'D' },
+                        { label: '1H', value: 'W' }
+                      ].map(({ label, value }) => (
+                        <button
+                          key={value}
+                          onClick={() => setChartInterval(value)}
+                          className={`px-2 py-1 text-xs rounded transition-colors ${
+                            chartInterval === value
+                              ? 'bg-yellow-500 text-black font-medium'
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Chart Widget */}
+                {showChart && (
+                  <TradingViewWidget
+                    symbol={symbol}
+                    interval={chartInterval}
+                    theme="dark"
+                    height={350}
+                  />
                 )}
               </div>
 

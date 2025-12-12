@@ -14,6 +14,8 @@ const Nav = ({ current, setCurrent, user, logout, lang, setLang, t }) => {
     { id: 'ai-summary', icon: '🤖', label: t.digest },
     { id: 'news', icon: '📰', label: t.news },
     { id: 'portfolio', icon: '💼', label: t.portfolio },
+    { id: 'dca', icon: '🧮', label: lang === 'tr' ? 'DCA' : 'DCA' },
+    { id: 'backtesting', icon: '📈', label: lang === 'tr' ? 'Backtest' : 'Backtest' },
   ]
 
   // Premium butonu (sadece free kullanıcılar için)

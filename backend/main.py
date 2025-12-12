@@ -49,7 +49,9 @@ from routers import (
     payment_router,
     ads_router,
     watchlist_router,
-    price_alerts_router
+    price_alerts_router,
+    dca_router,
+    backtesting_router
 )
 
 # =============================================================================
@@ -123,6 +125,12 @@ app.include_router(watchlist_router)
 
 # Price Alerts: /api/price-alerts/*
 app.include_router(price_alerts_router)
+
+# DCA Calculator: /api/dca/*
+app.include_router(dca_router)
+
+# Backtesting: /api/backtesting/*
+app.include_router(backtesting_router)
 
 # =============================================================================
 # STARTUP EVENT - WebSocket Price Broadcast

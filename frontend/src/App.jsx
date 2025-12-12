@@ -19,6 +19,8 @@ import News from './pages/News'
 import Portfolio from './pages/Portfolio'
 import Admin from './pages/Admin'
 import Premium from './pages/Premium'
+import DCACalculator from './pages/DCACalculator'
+import Backtesting from './pages/Backtesting'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -118,6 +120,8 @@ export default function App() {
         {current === 'portfolio' && <Portfolio t={t} lang={lang} user={user} />}
         {current === 'premium' && <Premium user={user} setCurrent={setCurrent} />}
         {current === 'admin' && <Admin t={t} lang={lang} user={user} />}
+        {current === 'dca' && <DCACalculator t={t} lang={lang} />}
+        {current === 'backtesting' && <Backtesting t={t} lang={lang} />}
       </main>
 
       {/* Footer - Optional */}

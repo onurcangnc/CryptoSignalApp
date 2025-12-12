@@ -19,6 +19,8 @@ from .payment import router as payment_router
 from .ads import router as ads_router
 from .watchlist import router as watchlist_router
 from .price_alerts import router as price_alerts_router
+from .dca import router as dca_router
+from .backtesting import router as backtesting_router
 
 __all__ = [
     'auth_router',
@@ -34,5 +36,7 @@ __all__ = [
     'payment_router',
     'ads_router',
     'watchlist_router',
-    'price_alerts_router'
+    'price_alerts_router',
+    'dca_router',
+    'backtesting_router'
 ]
