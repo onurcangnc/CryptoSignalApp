@@ -20,6 +20,7 @@ export function RewardedAdModal({ isOpen, onClose, onRewardClaimed, lang = 'tr' 
   const [claiming, setClaiming] = useState(false)
   const [error, setError] = useState(null)
   const [adLoaded, setAdLoaded] = useState(false)
+  const [adVerified, setAdVerified] = useState(false) // Reklam gerçekten gösterildi mi?
 
   const texts = {
     tr: {
@@ -32,7 +33,9 @@ export function RewardedAdModal({ isOpen, onClose, onRewardClaimed, lang = 'tr' 
       close: 'Kapat',
       error: 'Bir hata oluştu',
       adPlaceholder: 'Reklam Alanı',
-      success: 'Kredi kazanıldı!'
+      success: 'Kredi kazanıldı!',
+      adNotLoaded: 'Reklam yüklenemedi. Lütfen reklam engelleyicinizi kapatın ve tekrar deneyin.',
+      loadingAd: 'Reklam yükleniyor...'
     },
     en: {
       title: 'Earn AI Credit',
@@ -44,7 +47,9 @@ export function RewardedAdModal({ isOpen, onClose, onRewardClaimed, lang = 'tr' 
       close: 'Close',
       error: 'An error occurred',
       adPlaceholder: 'Ad Space',
-      success: 'Credit earned!'
+      success: 'Credit earned!',
+      adNotLoaded: 'Ad failed to load. Please disable your ad blocker and try again.',
+      loadingAd: 'Loading ad...'
     }
   }
 
@@ -55,21 +60,47 @@ export function RewardedAdModal({ isOpen, onClose, onRewardClaimed, lang = 'tr' 
     if (!isOpen) {
       setCountdown(15)
       setCanClaim(false)
+      setAdLoaded(false)
+      setAdVerified(false)
       setError(null)
       return
     }
 
-    // Try to load AdSense
-    try {
-      if (window.adsbygoogle) {
-        (window.adsbygoogle = window.adsbygoogle || []).push({})
-        setAdLoaded(true)
+    // Try to load AdSense and verify it loaded
+    const checkAdLoaded = () => {
+      try {
+        if (window.adsbygoogle) {
+          (window.adsbygoogle = window.adsbygoogle || []).push({})
+          setAdLoaded(true)
+
+          // Check if ad actually rendered (after a delay)
+          setTimeout(() => {
+            const adContainer = document.querySelector('.adsbygoogle[data-ad-slot="4444444444"]')
+            if (adContainer) {
+              // Check if ad has content (not empty)
+              const hasContent = adContainer.innerHTML.trim().length > 0
+              const hasIframe = adContainer.querySelector('iframe') !== null
+              const isNotBlank = !adContainer.getAttribute('data-ad-status')?.includes('unfilled')
+
+              if (hasContent && (hasIframe || isNotBlank)) {
+                setAdVerified(true)
+              } else {
+                console.log('Ad container exists but no ad content')
+                setAdVerified(false)
+              }
+            }
+          }, 2000) // Wait 2 seconds for ad to render
+        }
+      } catch (e) {
+        console.error('AdSense error:', e)
+        setAdLoaded(false)
+        setAdVerified(false)
       }
-    } catch (e) {
-      console.error('AdSense error:', e)
     }
 
-    // Countdown timer
+    checkAdLoaded()
+
+    // Countdown timer - only starts if modal is open
     const timer = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
@@ -158,7 +189,7 @@ export function RewardedAdModal({ isOpen, onClose, onRewardClaimed, lang = 'tr' 
               <div className="space-y-3">
                 <div className="flex items-center justify-center gap-2">
                   <div className="animate-spin text-2xl">⏳</div>
-                  <span className="text-gray-300">{t.watching}</span>
+                  <span className="text-gray-300">{adVerified ? t.watching : t.loadingAd}</span>
                 </div>
                 <div className="text-4xl font-bold text-purple-400">
                   {countdown}
@@ -173,7 +204,8 @@ export function RewardedAdModal({ isOpen, onClose, onRewardClaimed, lang = 'tr' 
                   />
                 </div>
               </div>
-            ) : (
+            ) : adVerified ? (
+              // Reklam doğrulandı - Kredi alınabilir
               <button
                 onClick={handleClaim}
                 disabled={claiming}
@@ -196,6 +228,28 @@ export function RewardedAdModal({ isOpen, onClose, onRewardClaimed, lang = 'tr' 
                   </>
                 )}
               </button>
+            ) : (
+              // Reklam yüklenemedi - Hata mesajı göster
+              <div className="space-y-3">
+                <div className="p-4 bg-red-900/30 border border-red-500/50 rounded-lg">
+                  <div className="text-3xl mb-2">🚫</div>
+                  <p className="text-red-300 text-sm">{t.adNotLoaded}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    // Sayfayı yenile ve tekrar dene
+                    setAdLoaded(false)
+                    setAdVerified(false)
+                    setCountdown(15)
+                    setCanClaim(false)
+                  }}
+                  className="w-full py-3 px-6 bg-gray-700 hover:bg-gray-600
+                             text-white font-medium rounded-lg
+                             transition-colors"
+                >
+                  🔄 {lang === 'tr' ? 'Tekrar Dene' : 'Try Again'}
+                </button>
+              </div>
             )}
 
             {/* Error */}
