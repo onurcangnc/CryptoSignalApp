@@ -9,9 +9,10 @@ Type=simple
 User=root
 Group=root
 WorkingDirectory=/opt/cryptosignal-app/backend
-Environment=PYTHONUNBUFFERED=1
+Environment="PYTHONUNBUFFERED=1"
+Environment="PYTHONPATH=/opt/cryptosignal-app/backend"
 EnvironmentFile=/opt/cryptosignal-app/backend/.env
-ExecStart=/usr/bin/python3 /opt/cryptosignal-app/backend/workers/worker_signals.py
+ExecStart=/opt/cryptosignal-app/backend/venv/bin/python3 /opt/cryptosignal-app/backend/workers/worker_signals.py
 Restart=always
 RestartSec=10
 
