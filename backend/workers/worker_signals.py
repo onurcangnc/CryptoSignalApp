@@ -179,10 +179,10 @@ def should_emit_signal(analysis: dict, risk_level: str) -> tuple:
     return signal, confidence, "passed"
 
 
-print("[Signal Worker v1.2] Starting with Quality Gate...")
+print("[Signal Worker v1.3] Starting with Binance Historical Data...")
 print(f"  Update interval: {UPDATE_INTERVAL}s")
 print(f"  Timeframes: {', '.join(TIMEFRAMES)}")
-print(f"  CoinGecko concurrency: 3")
+print(f"  Historical data: Binance Klines API (top 100 coins)")
 print(f"  Quality Gate: min_conf={MIN_CONFIDENCE_FOR_TRADE}, min_align={MIN_FACTOR_ALIGNMENT}")
 
 
@@ -241,72 +241,54 @@ def get_news_sentiment_for_coin(symbol: str, news_db: Dict) -> Optional[Dict]:
     }
 
 
-async def fetch_historical_prices(symbol: str, days: int = 365) -> List:
+async def fetch_historical_prices(symbol: str, days: int = 90) -> List:
     """
-    CoinGecko'dan historical price data cek
+    Binance Klines API'den historical price data çek.
+    CoinGecko rate limit sorununu çözmek için Binance kullanılıyor.
+
+    Returns:
+        List of [timestamp, price] pairs (CoinGecko format uyumlu)
     """
-    # CoinGecko ID mapping
-    SYMBOL_TO_ID = {
-        "BTC": "bitcoin", "ETH": "ethereum", "BNB": "binancecoin",
-        "XRP": "ripple", "SOL": "solana", "ADA": "cardano",
-        "DOGE": "dogecoin", "TRX": "tron", "AVAX": "avalanche-2",
-        "DOT": "polkadot", "LINK": "chainlink", "MATIC": "matic-network",
-        "POL": "polygon-ecosystem-token", "LTC": "litecoin",
-        "BCH": "bitcoin-cash", "ATOM": "cosmos", "UNI": "uniswap",
-        "XLM": "stellar", "ETC": "ethereum-classic", "FIL": "filecoin",
-        "APT": "aptos", "NEAR": "near", "INJ": "injective-protocol",
-        "OP": "optimism", "ARB": "arbitrum", "SUI": "sui",
-        "SEI": "sei-network", "FET": "artificial-superintelligence-alliance",
-        "RNDR": "render-token", "AAVE": "aave", "SHIB": "shiba-inu",
-        "PEPE": "pepe", "TON": "the-open-network", "HBAR": "hedera-hashgraph",
-        "ICP": "internet-computer", "STX": "stacks", "IMX": "immutable-x",
-        "TAO": "bittensor", "KAS": "kaspa", "ONDO": "ondo-finance",
-        "JUP": "jupiter-exchange-solana", "ENA": "ethena",
-        "WLD": "worldcoin-wld", "TIA": "celestia", "PYTH": "pyth-network",
-        "GRT": "the-graph", "ALGO": "algorand", "VET": "vechain",
-        "FTM": "fantom", "SAND": "the-sandbox", "MANA": "decentraland",
-        "AXS": "axie-infinity", "GALA": "gala", "LDO": "lido-dao",
-        "MKR": "maker", "SNX": "havven", "CRV": "curve-dao-token",
-        "COMP": "compound-governance-token", "ENJ": "enjincoin",
-        "CHZ": "chiliz", "FLOW": "flow", "MINA": "mina-protocol",
-        "EOS": "eos", "XTZ": "tezos", "NEO": "neo", "ZEC": "zcash",
-        "DASH": "dash", "IOTA": "iota", "XMR": "monero",
-        "THETA": "theta-token", "EGLD": "elrond-erd-2",
-        "QNT": "quant-network", "RUNE": "thorchain", "KAVA": "kava",
-        "CFX": "conflux-token", "APE": "apecoin", "GMX": "gmx",
-        "W": "wormhole", "STRK": "starknet", "MANTA": "manta-network",
-        "DYDX": "dydx-chain", "PENDLE": "pendle", "BLUR": "blur",
-        "AGIX": "singularitynet", "OCEAN": "ocean-protocol",
-        "FLOKI": "floki", "BONK": "bonk", "WIF": "dogwifcoin",
-        "MEME": "memecoin-2", "ORDI": "ordi", "JTO": "jito-governance-token",
-        "ZK": "zksync",
+    # Binance'de USDT paritesi olan coinler
+    BINANCE_SYMBOLS = {
+        "BTC", "ETH", "BNB", "XRP", "SOL", "ADA", "DOGE", "TRX", "AVAX",
+        "DOT", "LINK", "MATIC", "LTC", "BCH", "ATOM", "UNI", "XLM", "ETC",
+        "FIL", "APT", "NEAR", "INJ", "OP", "ARB", "SUI", "SEI", "FET",
+        "RNDR", "AAVE", "SHIB", "PEPE", "TON", "HBAR", "ICP", "STX", "IMX",
+        "TAO", "JUP", "ENA", "WLD", "TIA", "PYTH", "GRT", "ALGO", "VET",
+        "FTM", "SAND", "MANA", "AXS", "GALA", "LDO", "MKR", "SNX", "CRV",
+        "COMP", "ENJ", "CHZ", "FLOW", "EOS", "XTZ", "NEO", "ZEC", "DASH",
+        "IOTA", "THETA", "EGLD", "QNT", "RUNE", "KAVA", "CFX", "APE", "GMX",
+        "W", "STRK", "MANTA", "DYDX", "PENDLE", "BLUR", "FLOKI", "BONK",
+        "WIF", "MEME", "ORDI", "JTO", "ZK", "POL", "ONDO", "MINA"
     }
 
-    coin_id = SYMBOL_TO_ID.get(symbol)
-    if not coin_id:
+    if symbol not in BINANCE_SYMBOLS:
         return []
 
     try:
-        # Semaphore ile rate limiting
-        async with COINGECKO_SEMAPHORE:
-            async with httpx.AsyncClient(timeout=30) as client:
-                resp = await client.get(
-                    f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart",
-                    params={
-                        "vs_currency": "usd",
-                        "days": str(days),
-                        "interval": "daily"
-                    }
-                )
+        async with httpx.AsyncClient(timeout=30) as client:
+            # Binance Klines API - günlük veriler
+            resp = await client.get(
+                "https://api.binance.com/api/v3/klines",
+                params={
+                    "symbol": f"{symbol}USDT",
+                    "interval": "1d",
+                    "limit": min(days, 365)  # Max 365 gün
+                }
+            )
 
-                if resp.status_code == 200:
-                    data = resp.json()
-                    return data.get("prices", [])
-                elif resp.status_code == 429:
-                    print(f"[CoinGecko] Rate limited for {symbol}, backing off {COINGECKO_BACKOFF}s")
-                    await asyncio.sleep(COINGECKO_BACKOFF)
+            if resp.status_code == 200:
+                klines = resp.json()
+                # CoinGecko format: [[timestamp, price], ...]
+                prices = [[int(k[0]), float(k[4])] for k in klines]  # k[4] = close price
+                return prices
+            else:
+                # Bazı coinler USDT paritesi olmayabilir
+                return []
+
     except Exception as e:
-        print(f"[Historical] {symbol} error: {e}")
+        print(f"[Binance] {symbol} error: {e}")
 
     return []
 
@@ -457,12 +439,13 @@ async def generate_all_signals():
             # News sentiment
             news_sentiment = get_news_sentiment_for_coin(symbol, news_db)
 
-            # Historical prices (rate limit icin sadece top 50)
+            # Historical prices - Binance API (yüksek rate limit, top 100 için)
             historical_prices = []
-            if processed < 50:
+            if processed < 100:
                 historical_prices = await fetch_historical_prices(symbol, days=90)
-                if historical_prices:
-                    await asyncio.sleep(0.5)  # Rate limit
+                # Binance rate limit yüksek, minimal bekleme yeterli
+                if historical_prices and processed % 20 == 0:
+                    await asyncio.sleep(0.2)
 
             # Sinyalleri uret
             coin_signals = generate_signals_for_coin(
