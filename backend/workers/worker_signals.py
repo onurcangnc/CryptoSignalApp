@@ -371,24 +371,56 @@ async def generate_all_signals():
 
     print(f"  Total: {processed} | BUY: {buy_count} | HOLD: {hold_count} | SELL: {sell_count}")
 
-    # Signal tracking icin kayit - Top 20 coin (kalibrasyon verisi)
-    await track_top_signals(all_signals["1d"]["signals"], sorted_coins[:20])
+    # Signal tracking icin kayit - Tum coinler (akilli filtreleme ile)
+    await track_all_signals(all_signals["1d"]["signals"])
 
 
-async def track_top_signals(signals_1d: Dict, top_coins: List):
+async def track_all_signals(signals_1d: Dict):
     """
-    Top 20 coin icin sinyal tracking kaydi
-    Kalibrasyon verisi icin DB'ye kaydedilir
+    Tum coinler icin akilli sinyal tracking
+
+    Filtreleme kurallari:
+    1. HOLD sinyalleri hariç
+    2. Confidence < 30 hariç (dusuk guvenli sinyaller)
+    3. Son 24 saat icinde ayni coin+sinyal duplicate hariç
     """
+    # Son 24 saat icindeki kayitlari kontrol icin
+    recent_tracks = set()
+    try:
+        from database import get_db
+        with get_db() as conn:
+            rows = conn.execute("""
+                SELECT symbol, signal FROM signal_tracking
+                WHERE created_at >= datetime('now', '-24 hours')
+            """).fetchall()
+            recent_tracks = {(row["symbol"], row["signal"]) for row in rows}
+    except Exception as e:
+        print(f"  [Track] Recent check error: {e}")
+
     tracked = 0
-    for symbol, _ in top_coins:
-        signal_data = signals_1d.get(symbol)
+    skipped_hold = 0
+    skipped_low_conf = 0
+    skipped_duplicate = 0
+
+    for symbol, signal_data in signals_1d.items():
         if not signal_data:
             continue
 
-        # Sadece BUY/SELL sinyalleri track et (HOLD hariç)
+        # 1. HOLD sinyalleri hariç
         signal = signal_data.get("signal", "")
         if signal not in ["STRONG_BUY", "BUY", "SELL", "STRONG_SELL"]:
+            skipped_hold += 1
+            continue
+
+        # 2. Dusuk confidence hariç
+        confidence = signal_data.get("confidence", 0)
+        if confidence < 30:
+            skipped_low_conf += 1
+            continue
+
+        # 3. Duplicate kontrolu (son 24 saat)
+        if (symbol, signal) in recent_tracks:
+            skipped_duplicate += 1
             continue
 
         try:
@@ -424,8 +456,8 @@ async def track_top_signals(signals_1d: Dict, top_coins: List):
             print(f"  [Track] Error {symbol}: {e}")
             continue
 
-    if tracked > 0:
-        print(f"  [Track] Saved {tracked} signals for calibration")
+    # Detayli log
+    print(f"  [Track] Saved: {tracked} | Skip: HOLD={skipped_hold}, LowConf={skipped_low_conf}, Dup={skipped_duplicate}")
 
 
 async def main():
