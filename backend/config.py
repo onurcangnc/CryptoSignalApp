@@ -28,6 +28,12 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 REDIS_DB = int(os.getenv("REDIS_DB", 0))
 
+# Debug: Redis password yüklendi mi kontrol et
+if REDIS_PASSWORD:
+    print(f"[CONFIG] Redis password loaded: {REDIS_PASSWORD[:8]}...")
+else:
+    print("[CONFIG] WARNING: Redis password NOT loaded!")
+
 # =============================================================================
 # APP SETTINGS
 # =============================================================================
