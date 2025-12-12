@@ -12,6 +12,7 @@ export default {
         'slide-down': 'slideDown 0.4s ease-out',
         'scale-in': 'scaleIn 0.3s ease-out',
         'glow-pulse': 'glowPulse 2s ease-in-out infinite',
+        'progress': 'progress 3s linear forwards',
       },
       keyframes: {
         fadeIn: {
@@ -33,6 +34,10 @@ export default {
         glowPulse: {
           '0%, 100%': { boxShadow: '0 0 20px rgba(234, 179, 8, 0.3)' },
           '50%': { boxShadow: '0 0 40px rgba(234, 179, 8, 0.6)' },
+        },
+        progress: {
+          '0%': { width: '100%' },
+          '100%': { width: '0%' },
         },
       },
       backdropBlur: {

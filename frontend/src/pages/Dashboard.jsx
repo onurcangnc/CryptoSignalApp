@@ -219,8 +219,8 @@ const Dashboard = ({ t, lang, user }) => {
 
         {/* AI Signal Stats - IMPROVED */}
         {signalStats && (
-          <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-            <h3 className="text-gray-400 text-sm mb-2 flex items-center gap-2">
+          <div className="group bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 hover:border-green-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/20 hover:-translate-y-1">
+            <h3 className="text-gray-400 text-sm mb-2 flex items-center gap-2 group-hover:text-gray-300 transition-colors">
               🎯 {lang === 'tr' ? 'AI Performansı' : 'AI Performance'}
               <span className="text-xs text-gray-500">
                 ({lang === 'tr' ? '30 Gün' : '30 Days'})
@@ -228,20 +228,20 @@ const Dashboard = ({ t, lang, user }) => {
             </h3>
             <div className="space-y-2">
               <div className="flex items-baseline justify-between">
-                <span className="text-3xl font-bold text-green-500">
+                <span className="text-3xl font-bold text-green-500 group-hover:scale-105 transition-transform duration-300">
                   {signalStats.success_rate ? `${signalStats.success_rate.toFixed(1)}%` : 'N/A'}
                 </span>
-                <span className="text-sm text-gray-400">
+                <span className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">
                   {lang === 'tr' ? 'Başarı Oranı' : 'Success Rate'}
                 </span>
               </div>
-              <div className="text-xs text-gray-500 leading-relaxed">
+              <div className="text-xs text-gray-500 leading-relaxed group-hover:text-gray-400 transition-colors">
                 {lang === 'tr'
                   ? `${signalStats.profitable || 0}/${signalStats.total || 0} sinyal kârlı, ortalama %${(signalStats.avg_profit_pct || 0).toFixed(1)} kazanç`
                   : `${signalStats.profitable || 0}/${signalStats.total || 0} signals profitable, avg ${(signalStats.avg_profit_pct || 0).toFixed(1)}% gain`
                 }
               </div>
-              <div className="text-xs text-gray-600 italic mt-2 pt-2 border-t border-gray-700">
+              <div className="text-xs text-gray-600 italic mt-2 pt-2 border-t border-gray-700 group-hover:text-gray-500 transition-colors">
                 💡 {lang === 'tr'
                   ? 'AI her 10 sinyalden ~' + Math.round((signalStats.success_rate || 0) / 10) + "'inde doğru tahmin yapıyor"
                   : 'AI predicts correctly ~' + Math.round((signalStats.success_rate || 0) / 10) + ' out of 10 signals'
@@ -256,21 +256,21 @@ const Dashboard = ({ t, lang, user }) => {
           href={`https://t.me/${TELEGRAM_BOT_USERNAME}?start=connect_${user?.id || ''}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 border border-blue-400/50 hover:from-blue-600 hover:to-blue-700 transition-all cursor-pointer shadow-lg hover:shadow-blue-500/20"
+          className="group bg-gradient-to-br from-blue-500 to-blue-600 backdrop-blur-sm rounded-xl p-4 border border-blue-400/50 hover:border-blue-300/70 hover:from-blue-600 hover:to-blue-700 transition-all duration-300 cursor-pointer shadow-lg hover:shadow-blue-500/40 hover:-translate-y-1 hover:scale-[1.02] animate-fade-in"
         >
-          <h3 className="text-white text-sm mb-2 flex items-center gap-2">
+          <h3 className="text-white text-sm mb-2 flex items-center gap-2 group-hover:scale-105 transition-transform">
             📱 {lang === 'tr' ? 'Telegram Bildirimleri' : 'Telegram Notifications'}
           </h3>
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-2xl font-bold text-white mb-1">
+              <div className="text-2xl font-bold text-white mb-1 group-hover:text-blue-50 transition-colors">
                 @{TELEGRAM_BOT_USERNAME}
               </div>
-              <div className="text-sm text-blue-100 opacity-90">
+              <div className="text-sm text-blue-100 opacity-90 group-hover:opacity-100 transition-opacity">
                 {lang === 'tr' ? 'Portföy bildirimlerini al' : 'Get portfolio alerts'}
               </div>
             </div>
-            <div className="text-4xl">
+            <div className="text-4xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
               💬
             </div>
           </div>
@@ -280,8 +280,8 @@ const Dashboard = ({ t, lang, user }) => {
       {/* Second Row - 2 columns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Trending Coins */}
-        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-          <h3 className="text-gray-400 text-sm mb-3 flex items-center gap-2">
+        <div className="group bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 hover:border-orange-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/20 hover:-translate-y-1">
+          <h3 className="text-gray-400 text-sm mb-3 flex items-center gap-2 group-hover:text-gray-300 transition-colors">
             🔥 {lang === 'tr' ? 'Trend Coinler' : 'Trending Coins'}
             <span className="text-xs text-gray-500">
               ({lang === 'tr' ? 'En Çok Hareket Edenler' : 'Biggest Movers'})
@@ -299,10 +299,13 @@ const Dashboard = ({ t, lang, user }) => {
                 <div
                   key={symbol}
                   onClick={() => setSelected(coin)}
-                  className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-700/30 cursor-pointer transition-colors"
+                  className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:shadow-gray-900/50"
+                  style={{ animationDelay: `${idx * 50}ms` }}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-500">#{idx + 1}</span>
+                    <span className="text-xs text-gray-500 font-bold bg-gray-700/50 px-2 py-1 rounded">
+                      #{idx + 1}
+                    </span>
                     <div>
                       <div className="font-medium text-white text-sm">{symbol}</div>
                       <div className="text-xs text-gray-500">{formatPrice(price)}</div>
@@ -318,8 +321,8 @@ const Dashboard = ({ t, lang, user }) => {
         </div>
 
         {/* Recent Signals */}
-        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-          <h3 className="text-gray-400 text-sm mb-3 flex items-center gap-2">
+        <div className="group bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 hover:border-yellow-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/20 hover:-translate-y-1">
+          <h3 className="text-gray-400 text-sm mb-3 flex items-center gap-2 group-hover:text-gray-300 transition-colors">
             ⚡ {lang === 'tr' ? 'Son Sinyaller' : 'Recent Signals'}
           </h3>
           <div className="space-y-2">
@@ -367,15 +370,16 @@ const Dashboard = ({ t, lang, user }) => {
                 return (
                   <div
                     key={idx}
-                    className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-700/30 transition-colors"
+                    className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-700/50 transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:shadow-gray-900/50 cursor-pointer"
+                    style={{ animationDelay: `${idx * 50}ms` }}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${
+                      <span className={`px-2 py-1 rounded text-xs font-bold shadow-md transition-all duration-200 hover:scale-105 ${
                         signalType === 'BUY' || signalType === 'AL'
-                          ? 'bg-green-500/20 text-green-400'
+                          ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30 hover:shadow-green-500/50'
                           : signalType === 'SELL' || signalType === 'SAT'
-                          ? 'bg-red-500/20 text-red-400'
-                          : 'bg-yellow-500/20 text-yellow-400'
+                          ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:shadow-red-500/50'
+                          : 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 hover:shadow-yellow-500/50'
                       }`}>
                         {signalType}
                       </span>
@@ -410,8 +414,8 @@ const Dashboard = ({ t, lang, user }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Portfolio Summary */}
         {portfolio && (
-          <div className="bg-gradient-to-br from-purple-900/20 to-purple-800/20 rounded-xl p-4 border border-purple-700/50">
-            <h3 className="text-gray-400 text-sm mb-3 flex items-center gap-2">
+          <div className="group bg-gradient-to-br from-purple-900/20 to-purple-800/20 backdrop-blur-sm rounded-xl p-4 border border-purple-700/50 hover:border-purple-500/70 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-1">
+            <h3 className="text-gray-400 text-sm mb-3 flex items-center gap-2 group-hover:text-gray-300 transition-colors">
               📈 {lang === 'tr' ? 'Portföy Özeti' : 'Portfolio Summary'}
             </h3>
             <div className="space-y-3">
@@ -455,8 +459,8 @@ const Dashboard = ({ t, lang, user }) => {
 
         {/* Market Overview */}
         {marketData && (
-          <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-            <h3 className="text-gray-400 text-sm mb-3 flex items-center gap-2">
+          <div className="group bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 hover:border-blue-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-1">
+            <h3 className="text-gray-400 text-sm mb-3 flex items-center gap-2 group-hover:text-gray-300 transition-colors">
               📊 {lang === 'tr' ? 'Piyasa Görünümü' : 'Market Overview'}
             </h3>
             <div className="space-y-3">
@@ -496,14 +500,25 @@ const Dashboard = ({ t, lang, user }) => {
       </div>
 
       {/* Search */}
-      <div className="relative">
+      <div className="relative group">
+        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+          <span className="text-gray-500 group-focus-within:text-yellow-500 transition-colors">🔍</span>
+        </div>
         <input
           type="text"
           placeholder={lang === 'tr' ? 'Coin ara...' : 'Search coin...'}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500"
+          className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:shadow-lg focus:shadow-yellow-500/30 transition-all duration-300"
         />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-red-400 transition-colors"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {/* Coins Table */}
@@ -534,23 +549,35 @@ const Dashboard = ({ t, lang, user }) => {
                 <tr
                   key={symbol}
                   onClick={() => setSelected(coin)}
-                  className="border-t border-gray-700/50 hover:bg-gray-700/30 cursor-pointer transition-colors"
+                  className={`border-t border-gray-700/50 hover:bg-gradient-to-r hover:from-gray-700/50 hover:to-gray-700/20 cursor-pointer transition-all duration-200 hover:scale-[1.01] hover:shadow-md hover:shadow-gray-900/50 ${
+                    idx % 2 === 0 ? 'bg-gray-800/20' : 'bg-gray-800/40'
+                  }`}
                 >
-                  <td className="px-4 py-3 text-gray-500">{coin.rank || actualIndex + 1}</td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 text-yellow-500 font-bold text-sm">
+                      {coin.rank || actualIndex + 1}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-white">{symbol}</span>
                       <span className="text-gray-500 text-sm hidden sm:inline">{coin.name}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-right text-white font-mono">
+                  <td className="px-4 py-3 text-right text-white font-mono font-bold">
                     {formatPrice(price)}
                   </td>
-                  <td className={`px-4 py-3 text-right font-mono ${change24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {formatChange(change24h)}
+                  <td className={`px-4 py-3 text-right font-mono font-bold transition-colors ${change24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    <span className="inline-flex items-center gap-1">
+                      {change24h >= 0 ? '↗' : '↘'}
+                      {formatChange(change24h)}
+                    </span>
                   </td>
-                  <td className={`px-4 py-3 text-right font-mono hidden md:table-cell ${change7d >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {formatChange(change7d)}
+                  <td className={`px-4 py-3 text-right font-mono font-bold hidden md:table-cell transition-colors ${change7d >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    <span className="inline-flex items-center gap-1">
+                      {change7d >= 0 ? '↗' : '↘'}
+                      {formatChange(change7d)}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-right text-gray-400 hidden lg:table-cell">
                     {formatNumber(coin.market_cap)}
@@ -589,7 +616,7 @@ const Dashboard = ({ t, lang, user }) => {
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-2 rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200 hover:shadow-lg hover:shadow-gray-900/50 hover:-translate-x-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-x-0 transition-all duration-200"
             >
               {lang === 'tr' ? '← Önceki' : '← Previous'}
             </button>
@@ -612,10 +639,10 @@ const Dashboard = ({ t, lang, user }) => {
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`w-10 h-10 rounded-lg transition-colors ${
+                    className={`w-10 h-10 rounded-lg transition-all duration-200 font-bold ${
                       currentPage === pageNum
-                        ? 'bg-yellow-500 text-gray-900 font-bold'
-                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                        ? 'bg-yellow-500 text-gray-900 shadow-lg shadow-yellow-500/50 animate-glow-pulse scale-110'
+                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200 hover:scale-105 hover:shadow-md hover:shadow-gray-900/50'
                     }`}
                   >
                     {pageNum}
@@ -628,7 +655,7 @@ const Dashboard = ({ t, lang, user }) => {
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-2 rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200 hover:shadow-lg hover:shadow-gray-900/50 hover:translate-x-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-x-0 transition-all duration-200"
             >
               {lang === 'tr' ? 'Sonraki →' : 'Next →'}
             </button>

@@ -8,6 +8,7 @@ import translations from './utils/translations'
 // Components
 import Nav from './components/Nav'
 import Login from './components/Login'
+import Toast from './components/Toast'
 
 // Pages
 import Dashboard from './pages/Dashboard'
@@ -97,6 +98,9 @@ export default function App() {
       <footer className="text-center py-4 text-gray-600 text-xs">
         © 2025 CryptoSignal AI
       </footer>
+
+      {/* Toast Notifications */}
+      <Toast />
     </div>
   )
 }
