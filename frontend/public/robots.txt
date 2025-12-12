@@ -3,6 +3,9 @@ Allow: /
 Allow: /blog-bitcoin-2025.html
 Allow: /blog-altcoin-season.html
 Allow: /blog-risk-management.html
+Allow: /blog-ethereum-merge.html
+Allow: /blog-defi-guide.html
+Allow: /blog-technical-analysis.html
 
 # AdSense
 User-agent: Mediapartners-Google
