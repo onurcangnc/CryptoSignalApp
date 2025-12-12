@@ -307,9 +307,9 @@ def create_user(user_id: str, email: str, password: str, tier: str = "free") -> 
     with get_db() as conn:
         try:
             conn.execute(
-                "INSERT INTO users VALUES (?,?,?,?,?,?,NULL)",
-                (user_id, email.lower().strip(), hash_password(password, salt), 
-                 salt, tier, datetime.utcnow().isoformat())
+                "INSERT INTO users VALUES (?,?,?,?,?,?,NULL,?)",
+                (user_id, email.lower().strip(), hash_password(password, salt),
+                 salt, tier, datetime.utcnow().isoformat(), 0)
             )
             conn.commit()
             return True
