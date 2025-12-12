@@ -368,18 +368,19 @@ class AnalysisService:
         factor_directions.append(news_direction)
 
         # ============================================
-        # SİNYAL BELİRLEME
+        # SİNYAL BELİRLEME (v2.1 - Daha dengeli eşikler)
         # ============================================
-        if score >= 30:
+        # Eski eşikler çok yüksekti, neredeyse hiç BUY üretmiyordu
+        if score >= 25:
             signal = "STRONG_BUY"
             signal_tr = "GÜÇLÜ AL"
-        elif score >= 10:
+        elif score >= 5:
             signal = "BUY"
             signal_tr = "AL"
-        elif score <= -30:
+        elif score <= -25:
             signal = "STRONG_SELL"
             signal_tr = "GÜÇLÜ SAT"
-        elif score <= -10:
+        elif score <= -5:
             signal = "SELL"
             signal_tr = "SAT"
         else:

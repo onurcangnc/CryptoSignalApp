@@ -71,9 +71,10 @@ COINGECKO_BACKOFF = 5  # Seconds between batches
 analysis_service = AnalysisService()
 
 # --- Quality Gate (Trade kalitesi filtresi) ---
-MIN_CONFIDENCE_FOR_TRADE = 50          # %50 altı → BEKLE
-MIN_FACTOR_ALIGNMENT = 3               # En az 3/6 faktör uyumlu olmalı
-HIGH_RISK_CONFIDENCE_PENALTY = 10      # HIGH risk → +10 threshold
+# v1.3: Daha dengeli ayarlar (eskisi çok sıkıydı, hiç BUY sinyali üretmiyordu)
+MIN_CONFIDENCE_FOR_TRADE = 35          # %35 altı → BEKLE (eskisi 50)
+MIN_FACTOR_ALIGNMENT = 2               # En az 2/6 faktör uyumlu olmalı (eskisi 3)
+HIGH_RISK_CONFIDENCE_PENALTY = 5       # HIGH risk → +5 threshold (eskisi 10)
 
 BUY_SIGNALS = {"BUY", "AL", "STRONG_BUY", "GÜÇLÜ AL"}
 SELL_SIGNALS = {"SELL", "SAT", "STRONG_SELL", "GÜÇLÜ SAT"}
