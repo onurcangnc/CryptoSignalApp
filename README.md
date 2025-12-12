@@ -79,146 +79,253 @@ CryptoSignal AI, **mikroservis mimarisinde** tasarlanmış, yapay zeka destekli 
 
 ## 🏗️ Yazılım Mimarisi
 
-### Mimari Yaklaşım: **Mikroservis Mimarisi + Event-Driven Architecture**
+### Mimari Yaklaşım: **Distributed Monolith (Hybrid Architecture)**
 
-Platform, aşağıdaki mimari prensipleri benimser:
+Platform, **N-Tier Monolitik** temel yapı üzerine **Mikroservis benzeri Worker Servisleri** eklenmiş hibrit bir mimari kullanır.
 
-#### 1. **Mikroservis Mimarisi**
-- Her worker bağımsız bir mikroservis olarak çalışır
-- Servisler arası haberleşme: Redis Pub/Sub + Database
-- Her servis kendi sorumluluk alanında otonom
-- Horizontal scaling desteği (her worker bağımsız ölçeklenebilir)
+#### Mimari Sınıflandırma
 
-#### 2. **Layered Architecture (Katmanlı Mimari)**
+| Özellik | Bu Sistem | Gerçek Mikroservis |
+|---------|-----------|-------------------|
+| **Veritabanı** | Paylaşımlı SQLite + Redis | Servis başına ayrı DB |
+| **İletişim** | Shared State (Redis) | API/Message Queue |
+| **Deployment** | Bağımsız systemd servisleri | Container orchestration |
+| **Ölçeklenebilirlik** | Worker bazlı | Servis bazlı |
+| **Kod Tabanı** | Monorepo | Servis başına repo |
+
+#### Katmanlı Mimari (N-Tier)
+
 ```
-Presentation Layer   → React Frontend
-API Gateway Layer    → FastAPI (REST + WebSocket)
-Business Logic Layer → Services + Routers
-Data Access Layer    → Database module (ORM abstraction)
-Persistence Layer    → SQLite + Redis
+┌─────────────────────────────────────────────────────────────┐
+│                   PRESENTATION LAYER                         │
+│              React SPA + Landing Pages                       │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│                    APPLICATION LAYER                         │
+│         FastAPI (REST API + WebSocket + Auth)               │
+│    ┌─────────────────────────────────────────────────┐      │
+│    │  Routers → Services → Dependencies (DI)         │      │
+│    └─────────────────────────────────────────────────┘      │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│                 BACKGROUND WORKERS LAYER                     │
+│   Bağımsız Python prosesleri (systemd managed)              │
+│   ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐              │
+│   │ Prices │ │Signals │ │  AI    │ │Telegram│              │
+│   └────────┘ └────────┘ └────────┘ └────────┘              │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│                  DATA PERSISTENCE LAYER                      │
+│        SQLite (Persistent) + Redis (Cache/State)            │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-#### 3. **Event-Driven Architecture**
-- Workers: Periodic event triggers (cron-like)
-- Real-time events: WebSocket için pub/sub pattern
-- Asynchronous processing: Background tasks
+#### Worker İletişim Modeli
 
-#### 4. **Repository Pattern**
-- `database.py`: Centralized data access
-- Abstract database operations from business logic
-- Easy to swap database (SQLite → PostgreSQL)
+```
+worker_prices ──────┐
+                    ├──→ Redis (Shared State) ──→ FastAPI ──→ Clients
+worker_ai_analyst ──┤         ↓
+                    │      SQLite
+worker_signal_checker ──────────────────────────────────↑
+```
+
+**Neden Tam Mikroservis Değil:**
+- Tüm worker'lar aynı SQLite ve Redis'i paylaşır
+- Servisler arası API kontratı yok
+- Implicit ordering dependency (prices → signals → checker)
+- Single point of failure: Redis
+
+**Neden Tam Monolitik Değil:**
+- Her worker bağımsız process olarak çalışır
+- Ayrı systemd servisleri ile yönetilir
+- Bağımsız scale edilebilir
+- Eventually consistent data flow
 
 ---
 
-## 🎨 Tasarım Desenleri
+## 🎨 Tasarım Desenleri (GoF 23 Pattern Analysis)
 
-### Backend Design Patterns
+Kod tabanında tespit edilen Gang of Four tasarım desenleri:
 
-#### 1. **Dependency Injection (DI)**
-```python
-# dependencies.py
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    # JWT validation and user retrieval
-    return user
+### Creational Patterns (Yaratımsal)
 
-# Usage in routers
-@router.get("/signals")
-async def get_signals(user = Depends(get_current_user)):
-    # Automatic user injection
+#### 1. **Singleton Pattern**
+**Kullanım Yeri:** `LLMService`, `AnalysisService`, `RedisClient`
+
+Uygulama boyunca tek instance kullanılır. Pahalı kaynakların (API bağlantıları, DB connection pool) tekrar tekrar oluşturulmasını engeller.
+
+- `llm_service = LLMService()` → Tüm modül bu instance'ı kullanır
+- `analysis_service = AnalysisService()` → Tek analiz servisi
+- Redis connection pool → Lazy singleton
+
+#### 2. **Factory Method Pattern**
+**Kullanım Yeri:** Signal Generation, Empty State Components
+
+Farklı türde nesneler üretmek için fabrika metotları kullanılır.
+
+- `generate_signal(coin, timeframe)` → Timeframe'e göre farklı sinyal nesnesi
+- `EmptyState` component → `type` parametresine göre farklı UI üretir
+- Skeleton loader variants → Her sayfa için özelleştirilmiş skeleton
+
+#### 3. **Lazy Initialization (Virtual Proxy)**
+**Kullanım Yeri:** `RedisClientProxy` in database.py
+
+Redis bağlantısı ilk kullanımda oluşturulur, uygulama başlangıcında değil. Startup süresini kısaltır ve gereksiz bağlantı açılmasını engeller.
+
+### Structural Patterns (Yapısal)
+
+#### 4. **Proxy Pattern**
+**Kullanım Yeri:** `RedisClientProxy`
+
+Gerçek Redis client'ın önünde durur. Lazy loading, connection pooling ve error handling sağlar. Client kodundan bağımsız olarak bağlantı yönetimi yapılır.
+
+#### 5. **Facade Pattern**
+**Kullanım Yeri:** `database.py`, `api.js`
+
+Karmaşık alt sistemleri basit bir arayüz arkasına gizler.
+
+- `database.py` → SQLite + Redis işlemlerini tek modülde birleştirir
+- `api.js` (Frontend) → Tüm API çağrılarını merkezi fonksiyonlarla soyutlar
+- `LLMService` → OpenAI API karmaşıklığını gizler
+
+#### 6. **Composite Pattern**
+**Kullanım Yeri:** React Component Tree, Skeleton Loaders
+
+Parça-bütün hiyerarşisini temsil eder.
+
+- `DashboardSkeleton` → `SkeletonCard` + `SkeletonTable` + `SkeletonChart` birleşimi
+- `SignalPerformanceGrid` → 4 farklı card component'inin kompozisyonu
+- Page components → Header + Content + Footer kompozisyonu
+
+#### 7. **Decorator Pattern**
+**Kullanım Yeri:** FastAPI Dependencies, Route decorators
+
+Nesnelere dinamik olarak sorumluluk ekler.
+
+- `@router.get("/signals")` → Route'a HTTP handler davranışı ekler
+- `Depends(get_current_user)` → Endpoint'e auth kontrolü ekler
+- `Depends(require_llm_quota)` → Endpoint'e quota kontrolü ekler
+
+### Behavioral Patterns (Davranışsal)
+
+#### 8. **Observer Pattern (Pub/Sub)**
+**Kullanım Yeri:** WebSocket Broadcasting, React State
+
+Subject'teki değişiklikler observer'lara bildirilir.
+
+- WebSocket: `broadcast(message)` → Tüm bağlı client'lara mesaj
+- React: `useState` + `useEffect` → State değişince UI güncellenir
+- Redis: Worker'lar yazar → API okur → Client'lara broadcast
+
+#### 9. **Strategy Pattern**
+**Kullanım Yeri:** Signal Generation Algorithms, Analysis Methods
+
+Algoritma ailesini tanımlar ve birbirinin yerine kullanılabilir hale getirir.
+
+- Technical Analysis Strategies: RSI, MACD, Bollinger, MA, EMA
+- Backtesting Strategies: RSI Strategy, MACD Strategy, MA Crossover
+- Sentiment Analysis: Keyword-based vs AI-based scoring
+
+#### 10. **Template Method Pattern**
+**Kullanım Yeri:** Worker Base Structure, API Response Format
+
+Bir algoritmanın iskeletini tanımlar, adımları alt sınıflara bırakır.
+
+- Tüm worker'lar: `while True: process() → sleep()` şablonu
+- API responses: `{success, data, error}` şablonu
+- Signal cards: Shared layout, farklı data rendering
+
+#### 11. **Command Pattern**
+**Kullanım Yeri:** Telegram Bot Commands
+
+İstekleri nesne olarak kapsüller.
+
+- `/start`, `/portfolio`, `/signals` → Her komut ayrı handler
+- Komut geçmişi tutulabilir
+- Undo/Redo potansiyeli (henüz implemente edilmedi)
+
+#### 12. **State Pattern**
+**Kullanım Yeri:** Signal Lifecycle, WebSocket Connection
+
+Nesnenin iç durumu değişince davranışını değiştirir.
+
+- Signal states: `PENDING → ACTIVE → TARGET_HIT | STOP_LOSS`
+- WebSocket: `CONNECTING → CONNECTED → DISCONNECTED`
+- Loading states: `loading → success | error`
+
+#### 13. **Iterator Pattern**
+**Kullanım Yeri:** Pagination, Data Streaming
+
+Koleksiyon elemanlarına sıralı erişim sağlar.
+
+- API pagination: `limit`, `offset` parametreleri
+- Coin table: 100 items per page iteration
+- News feed: Infinite scroll pattern
+
+#### 14. **Chain of Responsibility**
+**Kullanım Yeri:** FastAPI Middleware, Auth Flow
+
+İsteği bir zincir boyunca iletir.
+
+```
+Request → CORS → Auth → Rate Limit → Route Handler → Response
 ```
 
-**Avantajlar:**
-- Loose coupling
-- Testability (mock dependencies)
-- Single Responsibility Principle
+- Her middleware isteği işleyip bir sonrakine geçirir
+- Auth başarısız olursa zincir kırılır (401 response)
 
-#### 2. **Repository Pattern**
-```python
-# database.py
-class Database:
-    def get_user_signals(user_id: int):
-        # Centralized data access
+#### 15. **Mediator Pattern**
+**Kullanım Yeri:** Redis as Central Hub
 
-    def save_signal(signal_data: dict):
-        # Encapsulated database logic
-```
+Nesneler arası iletişimi merkezi bir noktadan yönetir.
 
-**Avantajlar:**
-- Separation of concerns
-- Easy database migration
-- Testable business logic
+- Redis, tüm worker'lar arasında mediator görevi görür
+- Worker'lar birbirleriyle doğrudan konuşmaz
+- Tüm veri akışı Redis üzerinden geçer
 
-#### 3. **Factory Pattern**
-```python
-# services/
-- ai_service.py       # AI model creation
-- data_service.py     # Data source factories
-- notification.py     # Notification channel factory
-```
+### Frontend-Specific Patterns
 
-**Avantajlar:**
-- Object creation abstraction
-- Easy to add new implementations
-- Configuration-based instantiation
+#### 16. **Provider Pattern (React Context benzeri)**
+**Kullanım Yeri:** App.jsx root state
 
-#### 4. **Observer Pattern (Pub/Sub)**
-```python
-# Redis Pub/Sub for real-time updates
-redis_client.publish('price_update', json.dumps(price_data))
+- `user`, `lang`, `t` (translations) → Tüm component'lere props ile geçer
+- Context API kullanılmamış, basit prop drilling tercih edilmiş
 
-# WebSocket subscribers receive updates
-websocket.send_json(price_data)
-```
+#### 17. **Render Props / Callback Pattern**
+**Kullanım Yeri:** useWebSocket hook
 
-**Avantajlar:**
-- Decoupled communication
-- Real-time updates
-- Scalable notification system
+- `useWebSocket(onMessage)` → Callback ile mesaj işleme
+- Parent component state'i yönetir, child callback alır
 
-#### 5. **Strategy Pattern**
-```python
-# Different AI models for different analysis types
-class TechnicalAnalysisStrategy:
-    def analyze(data): ...
+#### 18. **Container/Presentational Pattern**
+**Kullanım Yeri:** Pages vs UI Components
 
-class SentimentAnalysisStrategy:
-    def analyze(data): ...
-```
+- **Container (Smart):** Dashboard, Signals → Data fetching, state
+- **Presentational (Dumb):** SkeletonLoader, EmptyState → Sadece UI
 
-#### 6. **Singleton Pattern**
-```python
-# Database connection pool
-# Redis connection pool
-# Shared resources across workers
-```
+### Pattern Özet Tablosu
 
-### Frontend Design Patterns
-
-#### 1. **Component Composition**
-```jsx
-<Dashboard>
-  <Header />
-  <SignalList />
-  <PriceChart />
-  <Footer />
-</Dashboard>
-```
-
-#### 2. **Custom Hooks**
-```jsx
-// useAuth.js - Authentication logic
-// useWebSocket.js - Real-time data
-// useSignals.js - Signal fetching
-```
-
-#### 3. **Context API**
-```jsx
-<AuthContext>
-  <LanguageContext>
-    <App />
-  </LanguageContext>
-</AuthContext>
-```
+| Pattern | Kategori | Kullanım Yeri | Amaç |
+|---------|----------|---------------|------|
+| Singleton | Creational | LLMService, Redis | Tek instance |
+| Factory Method | Creational | Signal/Skeleton generation | Nesne üretimi |
+| Lazy Init | Creational | RedisClientProxy | Gecikmeli oluşturma |
+| Proxy | Structural | RedisClientProxy | Erişim kontrolü |
+| Facade | Structural | database.py, api.js | Basitleştirme |
+| Composite | Structural | React components | Hiyerarşi |
+| Decorator | Structural | FastAPI Depends | Davranış ekleme |
+| Observer | Behavioral | WebSocket, React | Bildirim |
+| Strategy | Behavioral | Analysis algorithms | Algoritma değişimi |
+| Template | Behavioral | Workers, API format | İskelet tanımlama |
+| Command | Behavioral | Telegram commands | İstek kapsülleme |
+| State | Behavioral | Signal lifecycle | Durum yönetimi |
+| Iterator | Behavioral | Pagination | Sıralı erişim |
+| Chain of Resp. | Behavioral | Middleware | İstek zinciri |
+| Mediator | Behavioral | Redis hub | Merkezi iletişim |
 
 ---
 
