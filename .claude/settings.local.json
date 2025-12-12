@@ -4,7 +4,17 @@
       "Bash(cat:*)",
       "Bash(npm run build:*)",
       "Bash(where npm:*)",
-      "Bash(ssh root@31.97.129.113 \"cat /etc/systemd/system/cryptosignal-backend.service\")"
+      "Bash(ssh root@31.97.129.113 \"cat /etc/systemd/system/cryptosignal-backend.service\")",
+      "Bash(find:*)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(/opt/homebrew/bin/node:*)",
+      "Bash(/opt/homebrew/bin/npm --version)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: UI/UX overhaul with AdSense compliance and modern components\n\n- Add reusable UI components (AdBanner, SkeletonLoader, EmptyState, Disclaimer)\n- Update color palette with refined amber/gray theme\n- Add typography hierarchy classes (heading-1 to heading-4, body-lg/base/sm)\n- Implement skeleton loaders for Dashboard and Signals pages\n- Add risk disclaimer components for Google AdSense compliance\n- Integrate ad banners following Google policies (labeled, non-intrusive)\n- Improve empty states with illustrations and actions\n- Add CSS utility classes (card, btn, badge, input styles)\n- Enhanced animations (fade-in, slide-up, glow-pulse, shimmer)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(/opt/homebrew/opt/python@3.9/bin/python3.9 -m pytest:*)"
     ]
   }
 }
