@@ -9,8 +9,7 @@ User=root
 WorkingDirectory=/opt/cryptosignal-app/backend
 Environment="PYTHONUNBUFFERED=1"
 Environment="PYTHONPATH=/opt/cryptosignal-app/backend"
-Environment="TELEGRAM_ADMIN_BOT_TOKEN=YOUR_ADMIN_BOT_TOKEN"
-Environment="ADMIN_CHAT_ID=YOUR_CHAT_ID"
+EnvironmentFile=/opt/cryptosignal-app/backend/.env
 ExecStart=/opt/cryptosignal-app/backend/venv/bin/python3 workers/worker_telegram_admin.py
 Restart=always
 RestartSec=10
