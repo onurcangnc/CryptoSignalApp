@@ -205,9 +205,9 @@ def generate_signals_for_coin(
     """
     results = {}
 
-    # Technical indicators hesapla
+    # Technical indicators hesapla (public wrapper kullan)
     if historical_prices:
-        technical = analysis_service._calculate_indicators(historical_prices, [])
+        technical = analysis_service.calculate_indicators(historical_prices)
     else:
         # Fallback - sadece current price
         technical = {

@@ -211,6 +211,18 @@ const Signals = ({ t, lang }) => {
         ))}
       </div>
 
+      {/* Timeframe Warning - Same data notice */}
+      {timeframe !== '1d' && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-lg px-3 py-2 flex items-center gap-2 text-xs">
+          <span className="text-amber-500">ℹ️</span>
+          <span className="text-amber-700 dark:text-amber-400">
+            {lang === 'tr'
+              ? 'Not: Şu an tüm zaman dilimleri aynı günlük veriyi kullanmaktadır. Farklı periyot analizleri yakında eklenecek.'
+              : 'Note: All timeframes currently use the same daily data. Different period analysis coming soon.'}
+          </span>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-4 gap-3">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-3 text-center shadow">

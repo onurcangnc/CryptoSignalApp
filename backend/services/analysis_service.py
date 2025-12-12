@@ -87,8 +87,21 @@ class AnalysisService:
             print(f"[Analysis] Historical data error for {symbol}: {e}")
             return None
     
+    def calculate_indicators(self, prices: List, volumes: List = None) -> Dict:
+        """
+        Public wrapper for technical indicator calculation.
+
+        Args:
+            prices: List of [timestamp, price] pairs
+            volumes: List of [timestamp, volume] pairs (optional)
+
+        Returns:
+            Dict with RSI, MACD, Bollinger, MA, volatility, trend
+        """
+        return self._calculate_indicators(prices, volumes or [])
+
     def _calculate_indicators(self, prices: List, volumes: List) -> Dict:
-        """Teknik indikatörleri hesapla"""
+        """Teknik indikatörleri hesapla (internal)"""
         current_price = prices[-1][1] if prices else 0
         
         def get_change(days_ago):
