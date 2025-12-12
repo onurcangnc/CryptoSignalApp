@@ -13,12 +13,13 @@ import json
 import redis
 import httpx
 import websockets
+import os
 from datetime import datetime, timedelta
 from typing import Dict, Set
 
 # Redis
-REDIS_PASS = "3f9af2788cb89aa74c06bd48dd290658"
-r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True, password=REDIS_PASS)
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True, password=REDIS_PASSWORD)
 
 # Ayarlar
 COINGECKO_INTERVAL = 300  # 5 dakika

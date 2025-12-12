@@ -11,8 +11,8 @@ from datetime import datetime
 from typing import List
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-DB_PATH = "/opt/cryptosignal-app/backend/cryptosignal.db"
-REDIS_PASSWORD = "3f9af2788cb89aa74c06bd48dd290658"
+DB_PATH = os.getenv("DB_PATH", "/opt/cryptosignal-app/backend/cryptosignal.db")
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 
 try:
     r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True, password=REDIS_PASSWORD)

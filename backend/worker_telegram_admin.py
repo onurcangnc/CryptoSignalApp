@@ -21,8 +21,8 @@ from typing import Optional
 # Config
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_ADMIN_BOT_TOKEN", "")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "")  # Senin Telegram chat_id'n
-DB_PATH = "/opt/cryptosignal-app/backend/cryptosignal.db"
-REDIS_PASSWORD = "3f9af2788cb89aa74c06bd48dd290658"
+DB_PATH = os.getenv("DB_PATH", "/opt/cryptosignal-app/backend/cryptosignal.db")
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 
 # Redis
 try:

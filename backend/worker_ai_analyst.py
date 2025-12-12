@@ -19,12 +19,12 @@ from typing import Dict, List, Optional
 import sqlite3
 
 # Config
-REDIS_PASS = "3f9af2788cb89aa74c06bd48dd290658"
-DB_PATH = "/opt/cryptosignal-app/backend/cryptosignal.db"
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+DB_PATH = os.getenv("DB_PATH", "/opt/cryptosignal-app/backend/cryptosignal.db")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 # Redis connection
-r = redis.Redis(host='localhost', port=6379, password=REDIS_PASS, decode_responses=True)
+r = redis.Redis(host='localhost', port=6379, password=REDIS_PASSWORD, decode_responses=True)
 
 # OpenAI API
 def call_openai(messages: list, max_tokens: int = 2000, temperature: float = 0.7) -> Optional[str]:
