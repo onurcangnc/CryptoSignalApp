@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import api from '../api'
 import { SignalPerformanceGrid } from '../components/SignalPerformance'
+import { SignalsSkeleton, EmptyState, AdBanner, SignalDisclaimer } from '../components/ui'
 
 const Signals = ({ t, lang }) => {
   const [signals, setSignals] = useState({})
@@ -166,15 +167,9 @@ const Signals = ({ t, lang }) => {
       return mcapB - mcapA
     })
 
+  // Use skeleton loader instead of spinner
   if (loading && Object.keys(signals).length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-500">AI sinyalleri yükleniyor...</p>
-        </div>
-      </div>
-    )
+    return <SignalsSkeleton />
   }
 
   return (
@@ -451,16 +446,19 @@ const Signals = ({ t, lang }) => {
 
       {/* Empty */}
       {filteredSignals.length === 0 && (
-        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl">
-          <div className="text-4xl mb-3">🔍</div>
-          <p className="text-gray-500">Sinyal bulunamadı</p>
-        </div>
+        <EmptyState
+          type="no-signals"
+          lang={lang}
+          actionLabel={search ? (lang === 'tr' ? 'Aramayı Temizle' : 'Clear Search') : undefined}
+          onAction={search ? () => setSearch('') : undefined}
+        />
       )}
 
-      {/* Disclaimer */}
-      <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl text-sm text-yellow-800 dark:text-yellow-200">
-        ⚠️ <strong>Uyarı:</strong> Bu sinyaller yatırım tavsiyesi değildir. Kendi araştırmanızı yapın.
-      </div>
+      {/* Ad Banner */}
+      <AdBanner format="horizontal" slot="7777777777" className="my-6" />
+
+      {/* Disclaimer - Enhanced */}
+      <SignalDisclaimer lang={lang} />
     </div>
   )
 }

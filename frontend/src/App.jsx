@@ -9,6 +9,7 @@ import translations from './utils/translations'
 import Nav from './components/Nav'
 import Login from './components/Login'
 import Toast from './components/Toast'
+import { RiskDisclaimer } from './components/ui'
 
 // Pages
 import Landing from './pages/Landing'
@@ -124,9 +125,10 @@ export default function App() {
         {current === 'backtesting' && <Backtesting t={t} lang={lang} />}
       </main>
 
-      {/* Footer - Optional */}
-      <footer className="text-center py-4 text-gray-600 text-xs">
-        © 2025 CryptoSignal AI
+      {/* Footer with Risk Disclaimer */}
+      <RiskDisclaimer lang={lang} variant="footer" />
+      <footer className="text-center py-4 text-gray-600 text-xs border-t border-gray-800">
+        © 2025 CryptoSignal AI - {lang === 'tr' ? 'Tüm hakları saklıdır' : 'All rights reserved'}
       </footer>
 
       {/* Toast Notifications */}

@@ -7,6 +7,7 @@ import { useWebSocket } from '../hooks/useWebSocket'
 import { SignalPerformanceGrid } from '../components/SignalPerformance'
 import { Watchlist, FavoriteButton } from '../components/Watchlist'
 import { CreateAlertModal, PriceAlertsList } from '../components/PriceAlerts'
+import { DashboardSkeleton, EmptyState, AdBanner, RiskDisclaimer } from '../components/ui'
 
 const Dashboard = ({ t, lang, user }) => {
   const [coins, setCoins] = useState([])
@@ -168,22 +169,9 @@ const Dashboard = ({ t, lang, user }) => {
     return lang === 'tr' ? 'Aşırı Açgözlülük' : 'Extreme Greed'
   }
 
+  // Use skeleton loader instead of spinner
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-20 w-20 border-b-4 border-t-4 border-yellow-500 mx-auto"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-4xl animate-pulse">🚀</div>
-            </div>
-          </div>
-          <p className="mt-6 text-gray-400 font-medium animate-pulse">
-            {lang === 'tr' ? 'Yükleniyor...' : 'Loading...'}
-          </p>
-        </div>
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   return (
@@ -569,11 +557,20 @@ const Dashboard = ({ t, lang, user }) => {
         </div>
 
         {paginatedCoins.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            {lang === 'tr' ? 'Coin bulunamadı' : 'No coins found'}
-          </div>
+          <EmptyState
+            type="no-results"
+            lang={lang}
+            actionLabel={search ? (lang === 'tr' ? 'Aramayı Temizle' : 'Clear Search') : undefined}
+            onAction={search ? () => setSearch('') : undefined}
+          />
         )}
       </div>
+
+      {/* Ad Banner - After Table */}
+      <AdBanner format="horizontal" slot="6666666666" className="my-6" />
+
+      {/* Risk Disclaimer - Google AdSense Compliance */}
+      <RiskDisclaimer lang={lang} variant="banner" />
 
       {/* Pagination */}
       {filtered.length > ITEMS_PER_PAGE && (
