@@ -306,10 +306,18 @@ const Signals = ({ t, lang }) => {
                 {/* Confidence - Multi-Factor */}
                 <div className="mb-3">
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-gray-500 flex items-center gap-1">
+                    <span className="text-gray-500 flex items-center gap-1 group relative">
                       Güven Skoru
                       {data.confidence_details && (
-                        <span className="text-gray-400" title="Faktör uyumuna göre hesaplanır">ⓘ</span>
+                        <>
+                          <span className="text-gray-400 cursor-help">ⓘ</span>
+                          {/* Tooltip */}
+                          <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                            <p className="font-semibold mb-1">Güven = Faktör Uyum Gücü</p>
+                            <p className="text-gray-300">Teknik, futures ve haber göstergelerinin ne kadar aynı yönü işaret ettiğini ölçer. Yüksek güven = faktörler uyumlu.</p>
+                            <p className="text-yellow-400 mt-1 text-[10px]">⚠️ Bu bir tutturma olasılığı değildir.</p>
+                          </div>
+                        </>
                       )}
                     </span>
                     <span className={`font-bold ${
@@ -506,6 +514,37 @@ const Signals = ({ t, lang }) => {
                       ))}
                     </div>
                   )}
+
+                  {/* Data Source & Category Info */}
+                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex flex-wrap items-center gap-2 text-[10px]">
+                    {data.source && (
+                      <span className={`px-2 py-0.5 rounded-full ${
+                        data.source === 'binance_ws'
+                          ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                      }`}>
+                        📡 {data.source === 'binance_ws' ? 'Binance Real-time' : 'CoinGecko'}
+                      </span>
+                    )}
+                    {data.category && (
+                      <span className={`px-2 py-0.5 rounded-full ${
+                        data.category === 'MEGA_CAP' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
+                        data.category === 'LARGE_CAP' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' :
+                        data.category === 'HIGH_RISK' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                        'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                      }`}>
+                        {data.category === 'MEGA_CAP' ? '👑 Mega Cap' :
+                         data.category === 'LARGE_CAP' ? '💎 Large Cap' :
+                         data.category === 'HIGH_RISK' ? '🎰 Meme/High Risk' :
+                         data.category === 'STABLECOIN' ? '🔒 Stablecoin' : '🪙 Altcoin'}
+                      </span>
+                    )}
+                    {data.news_sentiment?.news_count > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">
+                        📰 {data.news_sentiment.news_count} haber (sent: {data.news_sentiment.score > 0 ? '+' : ''}{(data.news_sentiment.score * 100).toFixed(0)}%)
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
