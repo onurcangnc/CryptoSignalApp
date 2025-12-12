@@ -8,7 +8,7 @@ Type=simple
 User=root
 WorkingDirectory=/opt/cryptosignal-app/backend
 Environment="PYTHONUNBUFFERED=1"
-ExecStart=/usr/bin/python3 worker_prices.py
+ExecStart=/usr/bin/python3 workers/worker_prices.py
 Restart=always
 RestartSec=10
 

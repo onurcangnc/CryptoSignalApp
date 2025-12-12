@@ -8,7 +8,7 @@ Type=simple
 User=root
 WorkingDirectory=/opt/cryptosignal-app/backend
 Environment="PYTHONUNBUFFERED=1"
-ExecStart=/usr/bin/python3 worker_telegram.py
+ExecStart=/usr/bin/python3 workers/worker_telegram.py
 Restart=always
 RestartSec=10
 
