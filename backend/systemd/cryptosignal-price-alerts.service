@@ -1,0 +1,28 @@
+[Unit]
+Description=CryptoSignal Price Alerts Worker
+Documentation=https://github.com/onurcangnc/CryptoSignalApp
+After=network.target redis.service cryptosignal-prices.service
+Wants=redis.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/CryptoSignalApp/backend
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/root/CryptoSignalApp/backend/.env
+ExecStart=/usr/bin/python3 /root/CryptoSignalApp/backend/workers/worker_price_alerts.py
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cryptosignal-price-alerts
+
+# Resource limits
+MemoryMax=128M
+CPUQuota=20%
+
+[Install]
+WantedBy=multi-user.target
