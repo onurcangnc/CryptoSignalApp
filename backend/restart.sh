@@ -32,7 +32,9 @@ restart_service cryptosignal-futures
 restart_service cryptosignal-news
 restart_service cryptosignal-sentiment
 restart_service cryptosignal-ai-analyst
+restart_service cryptosignal-signals
 restart_service cryptosignal-signal-checker
+restart_service cryptosignal-price-alerts
 restart_service cryptosignal-telegram
 restart_service cryptosignal-telegram-admin
 
@@ -63,7 +65,9 @@ for svc in redis-server \
            cryptosignal-news \
            cryptosignal-sentiment \
            cryptosignal-ai-analyst \
+           cryptosignal-signals \
            cryptosignal-signal-checker \
+           cryptosignal-price-alerts \
            cryptosignal-telegram \
            cryptosignal-telegram-admin; do
     status=$(systemctl is-active $svc 2>/dev/null)

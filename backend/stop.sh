@@ -29,7 +29,9 @@ echo ""
 echo "⚙️ Workers:"
 stop_service cryptosignal-telegram-admin
 stop_service cryptosignal-telegram
+stop_service cryptosignal-price-alerts
 stop_service cryptosignal-signal-checker
+stop_service cryptosignal-signals
 stop_service cryptosignal-ai-analyst
 stop_service cryptosignal-sentiment
 stop_service cryptosignal-news

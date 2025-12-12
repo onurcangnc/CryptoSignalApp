@@ -39,7 +39,9 @@ check_service cryptosignal-futures
 check_service cryptosignal-news
 check_service cryptosignal-sentiment
 check_service cryptosignal-ai-analyst
+check_service cryptosignal-signals
 check_service cryptosignal-signal-checker
+check_service cryptosignal-price-alerts
 check_service cryptosignal-telegram
 check_service cryptosignal-telegram-admin
 
