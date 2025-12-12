@@ -824,60 +824,72 @@ def update_signal_result(signal_id: str, actual_price: float) -> None:
 
 def get_signal_success_rate(days: int = 30, symbol: str = None) -> Dict:
     """Sinyal başarı oranı istatistikleri"""
-    with get_db() as conn:
-        # Tarih filtresi
-        since = (datetime.utcnow() - timedelta(days=days)).isoformat()
+    try:
+        with get_db() as conn:
+            # Tarih filtresi
+            since = (datetime.utcnow() - timedelta(days=days)).isoformat()
 
-        if symbol:
-            # Belirli bir coin için
-            total = conn.execute(
-                "SELECT COUNT(*) as cnt FROM signal_tracking WHERE symbol=? AND created_at >= ? AND result IS NOT NULL",
-                (symbol, since)
-            ).fetchone()["cnt"]
+            if symbol:
+                # Belirli bir coin için
+                total = conn.execute(
+                    "SELECT COUNT(*) as cnt FROM signal_tracking WHERE symbol=? AND created_at >= ? AND result IS NOT NULL",
+                    (symbol, since)
+                ).fetchone()["cnt"]
 
-            successful = conn.execute(
-                "SELECT COUNT(*) as cnt FROM signal_tracking WHERE symbol=? AND created_at >= ? AND is_successful=1",
-                (symbol, since)
-            ).fetchone()["cnt"]
-        else:
-            # Tüm coinler
-            total = conn.execute(
-                "SELECT COUNT(*) as cnt FROM signal_tracking WHERE created_at >= ? AND result IS NOT NULL",
+                successful = conn.execute(
+                    "SELECT COUNT(*) as cnt FROM signal_tracking WHERE symbol=? AND created_at >= ? AND is_successful=1",
+                    (symbol, since)
+                ).fetchone()["cnt"]
+            else:
+                # Tüm coinler
+                total = conn.execute(
+                    "SELECT COUNT(*) as cnt FROM signal_tracking WHERE created_at >= ? AND result IS NOT NULL",
+                    (since,)
+                ).fetchone()["cnt"]
+
+                successful = conn.execute(
+                    "SELECT COUNT(*) as cnt FROM signal_tracking WHERE created_at >= ? AND is_successful=1",
+                    (since,)
+                ).fetchone()["cnt"]
+
+            success_rate = (successful / total * 100) if total > 0 else 0
+
+            # Sinyal tiplerine göre breakdown
+            signal_breakdown = conn.execute(
+                """SELECT signal, COUNT(*) as total,
+                          SUM(is_successful) as successful,
+                          AVG(profit_loss_pct) as avg_pnl
+                   FROM signal_tracking
+                   WHERE created_at >= ? AND result IS NOT NULL
+                   GROUP BY signal""",
                 (since,)
-            ).fetchone()["cnt"]
+            ).fetchall()
 
-            successful = conn.execute(
-                "SELECT COUNT(*) as cnt FROM signal_tracking WHERE created_at >= ? AND is_successful=1",
-                (since,)
-            ).fetchone()["cnt"]
-
-        success_rate = (successful / total * 100) if total > 0 else 0
-
-        # Sinyal tiplerine göre breakdown
-        signal_breakdown = conn.execute(
-            """SELECT signal, COUNT(*) as total,
-                      SUM(is_successful) as successful,
-                      AVG(profit_loss_pct) as avg_pnl
-               FROM signal_tracking
-               WHERE created_at >= ? AND result IS NOT NULL
-               GROUP BY signal""",
-            (since,)
-        ).fetchall()
-
+            return {
+                "total_signals": total,
+                "successful_signals": successful,
+                "success_rate": round(success_rate, 2),
+                "days": days,
+                "symbol": symbol,
+                "by_signal": [
+                    {
+                        "signal": row["signal"],
+                        "total": row["total"],
+                        "successful": row["successful"],
+                        "success_rate": round((row["successful"] / row["total"] * 100) if row["total"] > 0 else 0, 2),
+                        "avg_pnl": round(row["avg_pnl"], 2) if row["avg_pnl"] else 0
+                    }
+                    for row in signal_breakdown
+                ]
+            }
+    except sqlite3.OperationalError as e:
+        # Tablo yoksa veya schema hatası varsa boş sonuç dön
+        print(f"[DB] Signal tracking error: {e}")
         return {
-            "total_signals": total,
-            "successful_signals": successful,
-            "success_rate": round(success_rate, 2),
+            "total_signals": 0,
+            "successful_signals": 0,
+            "success_rate": 0,
             "days": days,
             "symbol": symbol,
-            "by_signal": [
-                {
-                    "signal": row["signal"],
-                    "total": row["total"],
-                    "successful": row["successful"],
-                    "success_rate": round((row["successful"] / row["total"] * 100) if row["total"] > 0 else 0, 2),
-                    "avg_pnl": round(row["avg_pnl"], 2) if row["avg_pnl"] else 0
-                }
-                for row in signal_breakdown
-            ]
+            "by_signal": []
         }
