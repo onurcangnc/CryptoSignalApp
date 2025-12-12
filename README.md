@@ -1,33 +1,33 @@
-# 🚀 CryptoSignal AI - Yapay Zeka Destekli Kripto Para Sinyal Platformu
+# 🚀 CryptoSignal AI - AI-Powered Cryptocurrency Signal Platform
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![React](https://img.shields.io/badge/react-18.0+-61DAFB.svg)](https://reactjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688.svg)](https://fastapi.tiangolo.com/)
 
-> AI destekli gerçek zamanlı kripto para analiz ve sinyal platformu. Bitcoin, Ethereum ve 1000+ coin için profesyonel trading sinyalleri, sentiment analizi ve portföy yönetimi.
+> AI-powered real-time cryptocurrency analysis and signal platform. Professional trading signals, sentiment analysis, and portfolio management for Bitcoin, Ethereum, and 1000+ coins.
 
-## 📋 İçindekiler
+## 📋 Table of Contents
 
-- [Genel Bakış](#-genel-bakış)
-- [Yazılım Mimarisi](#-yazılım-mimarisi)
-- [Tasarım Desenleri](#-tasarım-desenleri)
-- [Teknoloji Stack](#-teknoloji-stack)
-- [Özellikler](#-özellikler)
-- [Kurulum](#-kurulum)
-- [Kullanım](#-kullanım)
-- [API Dokümantasyonu](#-api-dokümantasyonu)
-- [Worker Servisleri](#-worker-servisleri)
+- [Overview](#-overview)
+- [Software Architecture](#-software-architecture)
+- [Design Patterns](#-design-patterns-gof-23-pattern-analysis)
+- [Tech Stack](#-tech-stack)
+- [Features](#-features)
+- [Installation](#-installation)
+- [Usage](#-usage)
+- [API Documentation](#-api-documentation)
+- [Worker Services](#-worker-services)
 - [Deployment](#-deployment)
-- [Katkıda Bulunma](#-katkıda-bulunma)
+- [Contributing](#-contributing)
 
 ---
 
-## 🎯 Genel Bakış
+## 🎯 Overview
 
-CryptoSignal AI, **mikroservis mimarisinde** tasarlanmış, yapay zeka destekli bir kripto para analiz platformudur. Platform, 8 bağımsız worker servisi ile gerçek zamanlı piyasa verilerini işler ve kullanıcılara actionable trading sinyalleri sunar.
+CryptoSignal AI is an AI-powered cryptocurrency analysis platform with a hybrid architecture. The platform processes real-time market data through 8 independent worker services and delivers actionable trading signals to users.
 
-### Temel Bileşenler
+### Core Components
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -77,23 +77,23 @@ CryptoSignal AI, **mikroservis mimarisinde** tasarlanmış, yapay zeka destekli 
 
 ---
 
-## 🏗️ Yazılım Mimarisi
+## 🏗️ Software Architecture
 
-### Mimari Yaklaşım: **Distributed Monolith (Hybrid Architecture)**
+### Architectural Approach: **Distributed Monolith (Hybrid Architecture)**
 
-Platform, **N-Tier Monolitik** temel yapı üzerine **Mikroservis benzeri Worker Servisleri** eklenmiş hibrit bir mimari kullanır.
+The platform uses a hybrid architecture that combines an **N-Tier Monolithic** base structure with **Microservice-like Worker Services**.
 
-#### Mimari Sınıflandırma
+#### Architecture Classification
 
-| Özellik | Bu Sistem | Gerçek Mikroservis |
-|---------|-----------|-------------------|
-| **Veritabanı** | Paylaşımlı SQLite + Redis | Servis başına ayrı DB |
-| **İletişim** | Shared State (Redis) | API/Message Queue |
-| **Deployment** | Bağımsız systemd servisleri | Container orchestration |
-| **Ölçeklenebilirlik** | Worker bazlı | Servis bazlı |
-| **Kod Tabanı** | Monorepo | Servis başına repo |
+| Aspect | This System | True Microservices |
+|--------|-------------|-------------------|
+| **Database** | Shared SQLite + Redis | Separate DB per service |
+| **Communication** | Shared State (Redis) | API/Message Queue |
+| **Deployment** | Independent systemd services | Container orchestration |
+| **Scalability** | Worker-based | Service-based |
+| **Codebase** | Monorepo | Separate repo per service |
 
-#### Katmanlı Mimari (N-Tier)
+#### Layered Architecture (N-Tier)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -111,7 +111,7 @@ Platform, **N-Tier Monolitik** temel yapı üzerine **Mikroservis benzeri Worker
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                 BACKGROUND WORKERS LAYER                     │
-│   Bağımsız Python prosesleri (systemd managed)              │
+│   Independent Python processes (systemd managed)            │
 │   ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐              │
 │   │ Prices │ │Signals │ │  AI    │ │Telegram│              │
 │   └────────┘ └────────┘ └────────┘ └────────┘              │
@@ -123,7 +123,7 @@ Platform, **N-Tier Monolitik** temel yapı üzerine **Mikroservis benzeri Worker
 └─────────────────────────────────────────────────────────────┘
 ```
 
-#### Worker İletişim Modeli
+#### Worker Communication Model
 
 ```
 worker_prices ──────┐
@@ -133,207 +133,207 @@ worker_ai_analyst ──┤         ↓
 worker_signal_checker ──────────────────────────────────↑
 ```
 
-**Neden Tam Mikroservis Değil:**
-- Tüm worker'lar aynı SQLite ve Redis'i paylaşır
-- Servisler arası API kontratı yok
+**Why Not True Microservices:**
+- All workers share the same SQLite and Redis
+- No API contracts between services
 - Implicit ordering dependency (prices → signals → checker)
 - Single point of failure: Redis
 
-**Neden Tam Monolitik Değil:**
-- Her worker bağımsız process olarak çalışır
-- Ayrı systemd servisleri ile yönetilir
-- Bağımsız scale edilebilir
+**Why Not Pure Monolithic:**
+- Each worker runs as an independent process
+- Managed by separate systemd services
+- Can be scaled independently
 - Eventually consistent data flow
 
 ---
 
-## 🎨 Tasarım Desenleri (GoF 23 Pattern Analysis)
+## 🎨 Design Patterns (GoF 23 Pattern Analysis)
 
-Kod tabanında tespit edilen Gang of Four tasarım desenleri:
+Gang of Four design patterns identified in the codebase:
 
-### Creational Patterns (Yaratımsal)
+### Creational Patterns
 
 #### 1. **Singleton Pattern**
-**Kullanım Yeri:** `LLMService`, `AnalysisService`, `RedisClient`
+**Usage:** `LLMService`, `AnalysisService`, `RedisClient`
 
-Uygulama boyunca tek instance kullanılır. Pahalı kaynakların (API bağlantıları, DB connection pool) tekrar tekrar oluşturulmasını engeller.
+A single instance is used throughout the application. Prevents repeated creation of expensive resources (API connections, DB connection pool).
 
-- `llm_service = LLMService()` → Tüm modül bu instance'ı kullanır
-- `analysis_service = AnalysisService()` → Tek analiz servisi
+- `llm_service = LLMService()` → All modules use this instance
+- `analysis_service = AnalysisService()` → Single analysis service
 - Redis connection pool → Lazy singleton
 
 #### 2. **Factory Method Pattern**
-**Kullanım Yeri:** Signal Generation, Empty State Components
+**Usage:** Signal Generation, Empty State Components
 
-Farklı türde nesneler üretmek için fabrika metotları kullanılır.
+Factory methods are used to create different types of objects.
 
-- `generate_signal(coin, timeframe)` → Timeframe'e göre farklı sinyal nesnesi
-- `EmptyState` component → `type` parametresine göre farklı UI üretir
-- Skeleton loader variants → Her sayfa için özelleştirilmiş skeleton
+- `generate_signal(coin, timeframe)` → Creates different signal objects based on timeframe
+- `EmptyState` component → Produces different UI based on `type` parameter
+- Skeleton loader variants → Customized skeleton for each page
 
 #### 3. **Lazy Initialization (Virtual Proxy)**
-**Kullanım Yeri:** `RedisClientProxy` in database.py
+**Usage:** `RedisClientProxy` in database.py
 
-Redis bağlantısı ilk kullanımda oluşturulur, uygulama başlangıcında değil. Startup süresini kısaltır ve gereksiz bağlantı açılmasını engeller.
+Redis connection is created on first use, not at application startup. Reduces startup time and prevents unnecessary connection opening.
 
-### Structural Patterns (Yapısal)
+### Structural Patterns
 
 #### 4. **Proxy Pattern**
-**Kullanım Yeri:** `RedisClientProxy`
+**Usage:** `RedisClientProxy`
 
-Gerçek Redis client'ın önünde durur. Lazy loading, connection pooling ve error handling sağlar. Client kodundan bağımsız olarak bağlantı yönetimi yapılır.
+Sits in front of the actual Redis client. Provides lazy loading, connection pooling, and error handling. Connection management is independent of client code.
 
 #### 5. **Facade Pattern**
-**Kullanım Yeri:** `database.py`, `api.js`
+**Usage:** `database.py`, `api.js`
 
-Karmaşık alt sistemleri basit bir arayüz arkasına gizler.
+Hides complex subsystems behind a simple interface.
 
-- `database.py` → SQLite + Redis işlemlerini tek modülde birleştirir
-- `api.js` (Frontend) → Tüm API çağrılarını merkezi fonksiyonlarla soyutlar
-- `LLMService` → OpenAI API karmaşıklığını gizler
+- `database.py` → Combines SQLite + Redis operations in a single module
+- `api.js` (Frontend) → Abstracts all API calls with centralized functions
+- `LLMService` → Hides OpenAI API complexity
 
 #### 6. **Composite Pattern**
-**Kullanım Yeri:** React Component Tree, Skeleton Loaders
+**Usage:** React Component Tree, Skeleton Loaders
 
-Parça-bütün hiyerarşisini temsil eder.
+Represents part-whole hierarchies.
 
-- `DashboardSkeleton` → `SkeletonCard` + `SkeletonTable` + `SkeletonChart` birleşimi
-- `SignalPerformanceGrid` → 4 farklı card component'inin kompozisyonu
-- Page components → Header + Content + Footer kompozisyonu
+- `DashboardSkeleton` → Composition of `SkeletonCard` + `SkeletonTable` + `SkeletonChart`
+- `SignalPerformanceGrid` → Composition of 4 different card components
+- Page components → Header + Content + Footer composition
 
 #### 7. **Decorator Pattern**
-**Kullanım Yeri:** FastAPI Dependencies, Route decorators
+**Usage:** FastAPI Dependencies, Route decorators
 
-Nesnelere dinamik olarak sorumluluk ekler.
+Dynamically adds responsibilities to objects.
 
-- `@router.get("/signals")` → Route'a HTTP handler davranışı ekler
-- `Depends(get_current_user)` → Endpoint'e auth kontrolü ekler
-- `Depends(require_llm_quota)` → Endpoint'e quota kontrolü ekler
+- `@router.get("/signals")` → Adds HTTP handler behavior to route
+- `Depends(get_current_user)` → Adds auth control to endpoint
+- `Depends(require_llm_quota)` → Adds quota control to endpoint
 
-### Behavioral Patterns (Davranışsal)
+### Behavioral Patterns
 
 #### 8. **Observer Pattern (Pub/Sub)**
-**Kullanım Yeri:** WebSocket Broadcasting, React State
+**Usage:** WebSocket Broadcasting, React State
 
-Subject'teki değişiklikler observer'lara bildirilir.
+Changes in subject are notified to observers.
 
-- WebSocket: `broadcast(message)` → Tüm bağlı client'lara mesaj
-- React: `useState` + `useEffect` → State değişince UI güncellenir
-- Redis: Worker'lar yazar → API okur → Client'lara broadcast
+- WebSocket: `broadcast(message)` → Message to all connected clients
+- React: `useState` + `useEffect` → UI updates when state changes
+- Redis: Workers write → API reads → Broadcast to clients
 
 #### 9. **Strategy Pattern**
-**Kullanım Yeri:** Signal Generation Algorithms, Analysis Methods
+**Usage:** Signal Generation Algorithms, Analysis Methods
 
-Algoritma ailesini tanımlar ve birbirinin yerine kullanılabilir hale getirir.
+Defines a family of algorithms and makes them interchangeable.
 
 - Technical Analysis Strategies: RSI, MACD, Bollinger, MA, EMA
 - Backtesting Strategies: RSI Strategy, MACD Strategy, MA Crossover
 - Sentiment Analysis: Keyword-based vs AI-based scoring
 
 #### 10. **Template Method Pattern**
-**Kullanım Yeri:** Worker Base Structure, API Response Format
+**Usage:** Worker Base Structure, API Response Format
 
-Bir algoritmanın iskeletini tanımlar, adımları alt sınıflara bırakır.
+Defines the skeleton of an algorithm, leaving steps to subclasses.
 
-- Tüm worker'lar: `while True: process() → sleep()` şablonu
-- API responses: `{success, data, error}` şablonu
-- Signal cards: Shared layout, farklı data rendering
+- All workers: `while True: process() → sleep()` template
+- API responses: `{success, data, error}` template
+- Signal cards: Shared layout, different data rendering
 
 #### 11. **Command Pattern**
-**Kullanım Yeri:** Telegram Bot Commands
+**Usage:** Telegram Bot Commands
 
-İstekleri nesne olarak kapsüller.
+Encapsulates requests as objects.
 
-- `/start`, `/portfolio`, `/signals` → Her komut ayrı handler
-- Komut geçmişi tutulabilir
-- Undo/Redo potansiyeli (henüz implemente edilmedi)
+- `/start`, `/portfolio`, `/signals` → Each command has separate handler
+- Command history can be maintained
+- Undo/Redo potential (not yet implemented)
 
 #### 12. **State Pattern**
-**Kullanım Yeri:** Signal Lifecycle, WebSocket Connection
+**Usage:** Signal Lifecycle, WebSocket Connection
 
-Nesnenin iç durumu değişince davranışını değiştirir.
+Changes behavior when internal state changes.
 
 - Signal states: `PENDING → ACTIVE → TARGET_HIT | STOP_LOSS`
 - WebSocket: `CONNECTING → CONNECTED → DISCONNECTED`
 - Loading states: `loading → success | error`
 
 #### 13. **Iterator Pattern**
-**Kullanım Yeri:** Pagination, Data Streaming
+**Usage:** Pagination, Data Streaming
 
-Koleksiyon elemanlarına sıralı erişim sağlar.
+Provides sequential access to collection elements.
 
-- API pagination: `limit`, `offset` parametreleri
+- API pagination: `limit`, `offset` parameters
 - Coin table: 100 items per page iteration
 - News feed: Infinite scroll pattern
 
 #### 14. **Chain of Responsibility**
-**Kullanım Yeri:** FastAPI Middleware, Auth Flow
+**Usage:** FastAPI Middleware, Auth Flow
 
-İsteği bir zincir boyunca iletir.
+Passes request along a chain.
 
 ```
 Request → CORS → Auth → Rate Limit → Route Handler → Response
 ```
 
-- Her middleware isteği işleyip bir sonrakine geçirir
-- Auth başarısız olursa zincir kırılır (401 response)
+- Each middleware processes request and passes to next
+- Chain breaks if auth fails (401 response)
 
 #### 15. **Mediator Pattern**
-**Kullanım Yeri:** Redis as Central Hub
+**Usage:** Redis as Central Hub
 
-Nesneler arası iletişimi merkezi bir noktadan yönetir.
+Manages inter-object communication from a central point.
 
-- Redis, tüm worker'lar arasında mediator görevi görür
-- Worker'lar birbirleriyle doğrudan konuşmaz
-- Tüm veri akışı Redis üzerinden geçer
+- Redis acts as mediator between all workers
+- Workers don't communicate directly with each other
+- All data flow goes through Redis
 
 ### Frontend-Specific Patterns
 
-#### 16. **Provider Pattern (React Context benzeri)**
-**Kullanım Yeri:** App.jsx root state
+#### 16. **Provider Pattern (React Context-like)**
+**Usage:** App.jsx root state
 
-- `user`, `lang`, `t` (translations) → Tüm component'lere props ile geçer
-- Context API kullanılmamış, basit prop drilling tercih edilmiş
+- `user`, `lang`, `t` (translations) → Passed to all components via props
+- Context API not used, simple prop drilling preferred
 
 #### 17. **Render Props / Callback Pattern**
-**Kullanım Yeri:** useWebSocket hook
+**Usage:** useWebSocket hook
 
-- `useWebSocket(onMessage)` → Callback ile mesaj işleme
-- Parent component state'i yönetir, child callback alır
+- `useWebSocket(onMessage)` → Message processing via callback
+- Parent component manages state, child receives callback
 
 #### 18. **Container/Presentational Pattern**
-**Kullanım Yeri:** Pages vs UI Components
+**Usage:** Pages vs UI Components
 
 - **Container (Smart):** Dashboard, Signals → Data fetching, state
-- **Presentational (Dumb):** SkeletonLoader, EmptyState → Sadece UI
+- **Presentational (Dumb):** SkeletonLoader, EmptyState → UI only
 
-### Pattern Özet Tablosu
+### Pattern Summary Table
 
-| Pattern | Kategori | Kullanım Yeri | Amaç |
-|---------|----------|---------------|------|
-| Singleton | Creational | LLMService, Redis | Tek instance |
-| Factory Method | Creational | Signal/Skeleton generation | Nesne üretimi |
-| Lazy Init | Creational | RedisClientProxy | Gecikmeli oluşturma |
-| Proxy | Structural | RedisClientProxy | Erişim kontrolü |
-| Facade | Structural | database.py, api.js | Basitleştirme |
-| Composite | Structural | React components | Hiyerarşi |
-| Decorator | Structural | FastAPI Depends | Davranış ekleme |
-| Observer | Behavioral | WebSocket, React | Bildirim |
-| Strategy | Behavioral | Analysis algorithms | Algoritma değişimi |
-| Template | Behavioral | Workers, API format | İskelet tanımlama |
-| Command | Behavioral | Telegram commands | İstek kapsülleme |
-| State | Behavioral | Signal lifecycle | Durum yönetimi |
-| Iterator | Behavioral | Pagination | Sıralı erişim |
-| Chain of Resp. | Behavioral | Middleware | İstek zinciri |
-| Mediator | Behavioral | Redis hub | Merkezi iletişim |
+| Pattern | Category | Usage Location | Purpose |
+|---------|----------|---------------|---------|
+| Singleton | Creational | LLMService, Redis | Single instance |
+| Factory Method | Creational | Signal/Skeleton generation | Object creation |
+| Lazy Init | Creational | RedisClientProxy | Deferred creation |
+| Proxy | Structural | RedisClientProxy | Access control |
+| Facade | Structural | database.py, api.js | Simplification |
+| Composite | Structural | React components | Hierarchy |
+| Decorator | Structural | FastAPI Depends | Add behavior |
+| Observer | Behavioral | WebSocket, React | Notification |
+| Strategy | Behavioral | Analysis algorithms | Algorithm swap |
+| Template | Behavioral | Workers, API format | Define skeleton |
+| Command | Behavioral | Telegram commands | Encapsulate request |
+| State | Behavioral | Signal lifecycle | State management |
+| Iterator | Behavioral | Pagination | Sequential access |
+| Chain of Resp. | Behavioral | Middleware | Request chain |
+| Mediator | Behavioral | Redis hub | Central communication |
 
 ---
 
-## 💻 Teknoloji Stack
+## 💻 Tech Stack
 
 ### Backend
-| Teknoloji | Versiyon | Kullanım Amacı |
-|-----------|----------|----------------|
+| Technology | Version | Purpose |
+|-----------|---------|---------|
 | Python | 3.9+ | Core language |
 | FastAPI | 0.104+ | REST API + WebSocket |
 | SQLite | 3.x | Primary database |
@@ -344,8 +344,8 @@ Nesneler arası iletişimi merkezi bir noktadan yönetir.
 | python-telegram-bot | 20.x | Telegram notifications |
 
 ### Frontend
-| Teknoloji | Versiyon | Kullanım Amacı |
-|-----------|----------|----------------|
+| Technology | Version | Purpose |
+|-----------|---------|---------|
 | React | 18.2+ | UI framework |
 | Vite | 5.x | Build tool |
 | TailwindCSS | 3.x | Styling |
@@ -368,21 +368,21 @@ Nesneler arası iletişimi merkezi bir noktadan yönetir.
 
 ---
 
-## ✨ Özellikler
+## ✨ Features
 
 ### 🎯 Core Features
 
 #### 1. **AI-Powered Signal Generation**
-- GPT-4 tabanlı teknik analiz
+- GPT-4 based technical analysis
 - Multi-indicator analysis (RSI, MACD, Bollinger Bands)
 - Pattern recognition (Head & Shoulders, Double Top/Bottom)
 - Sentiment-aware signal adjustment
 
 #### 2. **Real-Time Data Processing**
-- WebSocket ile canlı fiyat güncellemeleri
-- 1000+ coin için anlık takip
-- Futures market analizi
-- Volume ve market cap monitoring
+- Live price updates via WebSocket
+- Real-time tracking for 1000+ coins
+- Futures market analysis
+- Volume and market cap monitoring
 
 #### 3. **Sentiment Analysis**
 - News sentiment scoring (-1 to +1)
@@ -392,7 +392,7 @@ Nesneler arası iletişimi merkezi bir noktadan yönetir.
 
 #### 4. **Multi-Channel Notifications**
 - Telegram bot integration
-- Admin panel için özel kanal
+- Dedicated admin channel
 - Real-time signal alerts
 - Payment confirmation notifications
 
@@ -410,64 +410,64 @@ Nesneler arası iletişimi merkezi bir noktadan yönetir.
 
 ### 🔥 Advanced Features
 
-- **AI Analyst**: Günlük piyasa özeti ve stratejik öneriler
-- **Futures Signals**: Leverage trading için özel sinyaller
-- **News Aggregation**: Coinlere özel haber filtreleme
-- **Multi-Language**: TR/EN desteği
+- **AI Analyst**: Daily market summary and strategic recommendations
+- **Futures Signals**: Special signals for leverage trading
+- **News Aggregation**: Coin-specific news filtering
+- **Multi-Language**: TR/EN support
 - **SEO Optimized**: Landing page + 6 blog articles
-- **Mobile Responsive**: Tüm cihazlarda uyumlu
+- **Mobile Responsive**: Compatible with all devices
 - **Dark Mode**: Modern glassmorphism design
 
 ### 📈 Trading Tools
 
 #### 7. **DCA Calculator**
-- Dollar Cost Averaging stratejisi hesaplama
-- Günlük, haftalık, aylık yatırım aralıkları
-- Geçmiş performans simülasyonu
-- Görsel grafiklerle sonuç analizi
-- ROI ve ortalama maliyet hesaplama
+- Dollar Cost Averaging strategy calculation
+- Daily, weekly, monthly investment intervals
+- Historical performance simulation
+- Visual chart result analysis
+- ROI and average cost calculation
 
 #### 8. **Backtesting Engine**
-- Strateji test aracı (RSI, MACD, Moving Average)
-- Özelleştirilebilir parametreler
-- Win rate, profit factor, max drawdown metrikleri
-- Görsel grafik sonuçları
-- Entry/exit point analizi
+- Strategy testing tool (RSI, MACD, Moving Average)
+- Customizable parameters
+- Win rate, profit factor, max drawdown metrics
+- Visual chart results
+- Entry/exit point analysis
 
 #### 9. **Watchlist Management**
-- Kişisel coin takip listesi
-- Favorilere hızlı erişim
-- Gerçek zamanlı fiyat güncellemeleri
-- Özelleştirilebilir görünüm
+- Personal coin tracking list
+- Quick access to favorites
+- Real-time price updates
+- Customizable view
 
 #### 10. **Price Alerts**
-- Özel fiyat bildirimleri
-- Üst/alt eşik koşulları
-- Çoklu alert desteği
-- Telegram entegrasyonu
+- Custom price notifications
+- Above/below threshold conditions
+- Multiple alert support
+- Telegram integration
 
 #### 11. **TradingView Integration**
-- Profesyonel grafik widget'ı
-- 100+ teknik indikatör
-- Çoklu zaman dilimi desteği
-- Çizim araçları
+- Professional chart widget
+- 100+ technical indicators
+- Multiple timeframe support
+- Drawing tools
 
 ### 🎨 UI/UX Features
 
-- **Skeleton Loaders**: Modern loading durumları
-- **Empty States**: Bilgilendirici boş durum illüstrasyonları
-- **Risk Disclaimers**: Google AdSense uyumlu uyarılar
-- **Ad Banner System**: Reklam entegrasyonu
-- **Typography Hierarchy**: Tutarlı tipografi sistemi
-- **Color Palette**: Amber/Orange temalı renk paleti
-- **Animations**: Smooth geçiş animasyonları (fade-in, slide-up, shimmer)
-- **Accessibility**: Focus states ve semantic HTML
+- **Skeleton Loaders**: Modern loading states
+- **Empty States**: Informative empty state illustrations
+- **Risk Disclaimers**: Google AdSense compliant warnings
+- **Ad Banner System**: Advertisement integration
+- **Typography Hierarchy**: Consistent typography system
+- **Color Palette**: Amber/Orange themed color palette
+- **Animations**: Smooth transition animations (fade-in, slide-up, shimmer)
+- **Accessibility**: Focus states and semantic HTML
 
 ---
 
-## 🚀 Kurulum
+## 🚀 Installation
 
-### Gereksinimler
+### Requirements
 
 ```bash
 # System requirements
@@ -478,33 +478,33 @@ Nesneler arası iletişimi merkezi bir noktadan yönetir.
 - Git
 ```
 
-### 1. Repository Clone
+### 1. Clone Repository
 
 ```bash
 git clone https://github.com/yourusername/CryptoSignalApp.git
 cd CryptoSignalApp
 ```
 
-### 2. Backend Kurulumu
+### 2. Backend Setup
 
 ```bash
 cd backend
 
-# Virtual environment oluştur
+# Create virtual environment
 python3 -m venv venv
 source venv/bin/activate  # Linux/Mac
-# veya
+# or
 venv\Scripts\activate  # Windows
 
-# Dependencies yükle
+# Install dependencies
 pip install -r requirements.txt
 
-# .env dosyası oluştur
+# Create .env file
 cp .env.example .env
-nano .env  # API keys'leri ekle
+nano .env  # Add API keys
 ```
 
-#### .env Örneği
+#### .env Example
 ```env
 # Database
 DATABASE_URL=sqlite:///./cryptosignal.db
@@ -526,12 +526,12 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 ```
 
-### 3. Frontend Kurulumu
+### 3. Frontend Setup
 
 ```bash
 cd frontend
 
-# Dependencies yükle
+# Install dependencies
 npm install
 
 # Development build
@@ -541,7 +541,7 @@ npm run dev
 npm run build
 ```
 
-### 4. Redis Kurulumu
+### 4. Redis Setup
 
 ```bash
 # Ubuntu/Debian
@@ -558,7 +558,7 @@ brew services start redis
 docker run -d -p 6379:6379 redis:7-alpine
 ```
 
-### 5. Database Initialize
+### 5. Initialize Database
 
 ```bash
 cd backend
@@ -567,7 +567,7 @@ python3 -c "from database import init_db; init_db()"
 
 ---
 
-## 🎮 Kullanım
+## 🎮 Usage
 
 ### Development Mode
 
@@ -598,13 +598,13 @@ python3 workers/worker_ai_analyst.py
 
 ### Production Mode
 
-#### 1. Systemd ile Servis Yönetimi
+#### 1. Service Management with Systemd
 
 ```bash
-# Service dosyalarını kopyala
+# Copy service files
 sudo cp backend/systemd/*.service /etc/systemd/system/
 
-# Servisleri etkinleştir
+# Enable services
 sudo systemctl daemon-reload
 sudo systemctl enable cryptosignal-backend
 sudo systemctl enable cryptosignal-prices
@@ -616,17 +616,17 @@ sudo systemctl enable cryptosignal-signal-checker
 sudo systemctl enable cryptosignal-telegram
 sudo systemctl enable cryptosignal-telegram-admin
 
-# Servisleri başlat
+# Start services
 sudo systemctl start cryptosignal-backend
 sudo systemctl start cryptosignal-prices
 sudo systemctl start cryptosignal-sentiment
-# ... diğer servisler
+# ... other services
 
-# Durum kontrolü
+# Check status
 sudo systemctl status cryptosignal-backend
 ```
 
-#### 2. Nginx Konfigürasyonu
+#### 2. Nginx Configuration
 
 ```nginx
 server {
@@ -679,14 +679,14 @@ server {
 cd frontend
 npm run build
 
-# Nginx için dist/ klasörünü kullan
-# Otomatik olarak public/ içindeki dosyalar kopyalanır
-ls -la dist/  # blog-*.html, robots.txt, sitemap.xml görünmeli
+# Use dist/ folder for Nginx
+# Files from public/ are automatically copied
+ls -la dist/  # blog-*.html, robots.txt, sitemap.xml should be visible
 ```
 
 ---
 
-## 📚 API Dokümantasyonu
+## 📚 API Documentation
 
 ### Base URL
 ```
@@ -936,87 +936,87 @@ Content-Type: application/json
 
 ---
 
-## 🤖 Worker Servisleri
+## 🤖 Worker Services
 
-### Worker Mimarisi
+### Worker Architecture
 
-Her worker bağımsız bir mikroservis olarak çalışır ve belirli bir görevden sorumludur:
+Each worker runs as an independent microservice-like process and is responsible for a specific task:
 
 ```
 backend/workers/
 ├── __init__.py
-├── worker_prices.py          # Fiyat verisi toplama
-├── worker_sentiment.py       # Sentiment analizi
-├── worker_news.py            # Haber toplama
-├── worker_futures.py         # Futures market analizi
-├── worker_ai_analyst.py      # AI-powered analiz
-├── worker_signal_checker.py  # Sinyal doğrulama
-├── worker_telegram.py        # Kullanıcı bildirimleri
-├── worker_telegram_admin.py  # Admin bildirimleri
-└── worker_price_alerts.py    # Fiyat alert tetikleyici
+├── worker_prices.py          # Price data collection
+├── worker_sentiment.py       # Sentiment analysis
+├── worker_news.py            # News aggregation
+├── worker_futures.py         # Futures market analysis
+├── worker_ai_analyst.py      # AI-powered analysis
+├── worker_signal_checker.py  # Signal validation
+├── worker_telegram.py        # User notifications
+├── worker_telegram_admin.py  # Admin notifications
+└── worker_price_alerts.py    # Price alert trigger
 
 frontend/src/components/ui/   # Reusable UI Components
 ├── index.js                  # Component exports
-├── AdBanner.jsx              # Google AdSense uyumlu reklam
+├── AdBanner.jsx              # Google AdSense compliant ads
 ├── SkeletonLoader.jsx        # Skeleton loading components
-├── EmptyState.jsx            # Empty state illüstrasyonları
+├── EmptyState.jsx            # Empty state illustrations
 └── Disclaimer.jsx            # Risk disclaimer components
 
 frontend/src/pages/           # Page Components
-├── Dashboard.jsx             # Ana dashboard
-├── Signals.jsx               # Trading sinyalleri
-├── AISummary.jsx             # AI özet sayfası
-├── News.jsx                  # Haber akışı
-├── Portfolio.jsx             # Portföy yönetimi
-├── DCACalculator.jsx         # DCA hesaplama aracı
-├── Backtesting.jsx           # Strateji backtesting
-├── Premium.jsx               # Premium abonelik
-├── Admin.jsx                 # Admin paneli
+├── Dashboard.jsx             # Main dashboard
+├── Signals.jsx               # Trading signals
+├── AISummary.jsx             # AI summary page
+├── News.jsx                  # News feed
+├── Portfolio.jsx             # Portfolio management
+├── DCACalculator.jsx         # DCA calculator tool
+├── Backtesting.jsx           # Strategy backtesting
+├── Premium.jsx               # Premium subscription
+├── Admin.jsx                 # Admin panel
 └── Landing.jsx               # Landing page
 ```
 
 ### 1. **worker_prices.py**
-```python
-Görev: 1000+ coin için fiyat verisi toplama
+```
+Task: Price data collection for 1000+ coins
 API: CoinGecko API
-Periyot: Her 60 saniye
-İşlemler:
-  - Fiyat, hacim, market cap verisi çekme
-  - Database'e kaydetme
-  - Redis'e cache'leme
-  - WebSocket'e broadcast
+Period: Every 60 seconds
+Operations:
+  - Fetch price, volume, market cap data
+  - Save to database
+  - Cache to Redis
+  - Broadcast to WebSocket
 ```
 
 ### 2. **worker_sentiment.py**
-```python
-Görev: Kripto haberleri için sentiment analizi
+```
+Task: Sentiment analysis for crypto news
 API: CryptoCompare News API
-Periyot: Her 5 dakika
-İşlemler:
-  - Top 50 coin için haber çekme
+Period: Every 5 minutes
+Operations:
+  - Fetch news for top 50 coins
   - Keyword-based sentiment scoring
-  - -1 (bearish) ile +1 (bullish) arası skor
-  - Database'e kaydetme
+  - Score from -1 (bearish) to +1 (bullish)
+  - Save to database
 ```
 
 ### 3. **worker_news.py**
-```python
-Görev: Coin-specific haber toplama
+```
+Task: Coin-specific news aggregation
 API: CryptoCompare News API
-Periyot: Her 10 dakika
-İşlemler:
-  - Her coin için relevance-filtered news
+Period: Every 10 minutes
+Operations:
+  - Relevance-filtered news for each coin
   - Duplicate removal
-  - Database'e kaydetme
-  - Telegram'a önemli haberleri gönderme
+  - Save to database
+  - Send important news to Telegram
 ```
 
 ### 4. **worker_futures.py**
-```python
-Görev: Binance futures market analizi
+```
+Task: Binance futures market analysis
 API: Binance Futures API
-Periyot: Her 2 dakika
-İşlemler:
+Period: Every 2 minutes
+Operations:
   - Open interest data
   - Funding rate
   - Long/short ratio
@@ -1024,55 +1024,55 @@ Periyot: Her 2 dakika
 ```
 
 ### 5. **worker_ai_analyst.py**
-```python
-Görev: AI-powered piyasa analizi
+```
+Task: AI-powered market analysis
 API: OpenAI GPT-4
-Periyot: Her 6 saat (günde 4 kez)
-İşlemler:
-  - Top 10 coin için deep analysis
+Period: Every 6 hours (4 times daily)
+Operations:
+  - Deep analysis for top 10 coins
   - Technical + fundamental + sentiment
-  - Trading stratejileri
+  - Trading strategies
   - Risk assessment
-  - Database'e kaydetme
+  - Save to database
 ```
 
 ### 6. **worker_signal_checker.py**
-```python
-Görev: Sinyal validasyonu ve güncelleme
-Periyot: Her 5 dakika
-İşlemler:
-  - Aktif sinyallerin fiyat kontrolü
+```
+Task: Signal validation and updates
+Period: Every 5 minutes
+Operations:
+  - Price check for active signals
   - Target/stop-loss trigger detection
-  - Sinyal durumu güncelleme (hit_target, hit_stop_loss)
-  - Kullanıcılara bildirim gönderme
+  - Update signal status (hit_target, hit_stop_loss)
+  - Send notifications to users
 ```
 
 ### 7. **worker_telegram.py**
-```python
-Görev: Kullanıcı bildirimleri
-Periyot: Event-driven (yeni sinyal oluşunca)
-İşlemler:
-  - Yeni sinyal bildirimi
-  - Sinyal güncellemeleri (target hit, SL hit)
-  - Formatlanmış mesajlar
+```
+Task: User notifications
+Period: Event-driven (when new signal is created)
+Operations:
+  - New signal notification
+  - Signal updates (target hit, SL hit)
+  - Formatted messages
   - User-specific notifications
 ```
 
 ### 8. **worker_telegram_admin.py**
-```python
-Görev: Admin panel bildirimleri
-Periyot: Event-driven
-İşlemler:
-  - Yeni kullanıcı kaydı
-  - Ödeme onayları
-  - Sistem hataları
-  - Günlük istatistikler
+```
+Task: Admin panel notifications
+Period: Event-driven
+Operations:
+  - New user registration
+  - Payment confirmations
+  - System errors
+  - Daily statistics
 ```
 
-### Worker Yönetimi
+### Worker Management
 
 ```bash
-# Tüm worker'ları başlat
+# Start all workers
 sudo systemctl start cryptosignal-prices
 sudo systemctl start cryptosignal-sentiment
 sudo systemctl start cryptosignal-news
@@ -1082,10 +1082,10 @@ sudo systemctl start cryptosignal-signal-checker
 sudo systemctl start cryptosignal-telegram
 sudo systemctl start cryptosignal-telegram-admin
 
-# Hepsini durdur
+# Stop all
 sudo systemctl stop cryptosignal-*
 
-# Log'ları görüntüle
+# View logs
 journalctl -u cryptosignal-prices -f
 journalctl -u cryptosignal-ai-analyst -f
 ```
@@ -1098,7 +1098,7 @@ journalctl -u cryptosignal-ai-analyst -f
 
 #### 1. Server Setup
 ```bash
-# Ubuntu 22.04 LTS önerilir
+# Ubuntu 22.04 LTS recommended
 sudo apt update && sudo apt upgrade -y
 
 # Dependencies
@@ -1123,7 +1123,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Configure .env
-nano .env  # API keys ekle
+nano .env  # Add API keys
 
 # Initialize database
 python3 -c "from database import init_db; init_db()"
@@ -1141,7 +1141,7 @@ npm run build
 sudo cp backend/systemd/*.service /etc/systemd/system/
 sudo systemctl daemon-reload
 
-# Enable ve start all services
+# Enable and start all services
 for service in cryptosignal-*.service; do
   sudo systemctl enable $service
   sudo systemctl start $service
@@ -1155,7 +1155,7 @@ sudo certbot --nginx -d yourdomain.com
 
 # Nginx config
 sudo nano /etc/nginx/sites-available/cryptosignal
-# (Yukarıdaki Nginx config'i yapıştır)
+# (Paste the Nginx config above)
 
 sudo ln -s /etc/nginx/sites-available/cryptosignal /etc/nginx/sites-enabled/
 sudo nginx -t
@@ -1175,9 +1175,9 @@ journalctl -u cryptosignal-prices -n 100
 
 ---
 
-## 🤝 Katkıda Bulunma
+## 🤝 Contributing
 
-Contributions are welcome! Lütfen şu adımları takip edin:
+Contributions are welcome! Please follow these steps:
 
 1. Fork the repository
 2. Create feature branch (`git checkout -b feature/AmazingFeature`)
@@ -1196,13 +1196,13 @@ Contributions are welcome! Lütfen şu adımları takip edin:
 
 ## 📄 License
 
-Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına bakınız.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) file for details.
 
 ---
 
-## 👨‍💻 Geliştirici
+## 👨‍💻 Developer
 
-**Onurcan Genç**
+**Onurcan Genc**
 
 - GitHub: [@onurcangnc](https://github.com/onurcangnc)
 - LinkedIn: [onurcangenc](https://linkedin.com/in/onurcangenc)
@@ -1210,7 +1210,7 @@ Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICE
 
 ---
 
-## 🙏 Teşekkürler
+## 🙏 Acknowledgments
 
 - [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
 - [React](https://reactjs.org/) - UI library
@@ -1261,6 +1261,6 @@ Contributors: 1
 
 **⭐ Star this repo if you find it useful!**
 
-Made with ❤️ by [Onurcan Genç](https://github.com/onurcangnc)
+Made with ❤️ by [Onurcan Genc](https://github.com/onurcangnc)
 
 </div>
