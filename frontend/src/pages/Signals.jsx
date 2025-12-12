@@ -303,20 +303,48 @@ const Signals = ({ t, lang }) => {
                   </span>
                 </div>
 
-                {/* Confidence */}
+                {/* Confidence - Multi-Factor */}
                 <div className="mb-3">
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-gray-500">Güven</span>
-                    <span className="font-bold text-gray-900 dark:text-white">{confidence}%</span>
+                    <span className="text-gray-500 flex items-center gap-1">
+                      Güven Skoru
+                      {data.confidence_details && (
+                        <span className="text-gray-400" title="Faktör uyumuna göre hesaplanır">ⓘ</span>
+                      )}
+                    </span>
+                    <span className={`font-bold ${
+                      confidence >= 70 ? 'text-green-600' : confidence >= 50 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                      {confidence}%
+                    </span>
                   </div>
                   <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full ${
+                    <div
+                      className={`h-full rounded-full transition-all ${
                         confidence >= 70 ? 'bg-green-500' : confidence >= 50 ? 'bg-yellow-500' : 'bg-red-500'
                       }`}
                       style={{ width: `${confidence}%` }}
                     />
                   </div>
+                  {/* Confidence Factors Mini Summary */}
+                  {data.confidence_details && (
+                    <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                      <span className="flex items-center gap-0.5">
+                        <span className="text-green-500">▲</span>{data.confidence_details.factors_buy || 0}
+                      </span>
+                      <span className="flex items-center gap-0.5">
+                        <span className="text-red-500">▼</span>{data.confidence_details.factors_sell || 0}
+                      </span>
+                      <span className="flex items-center gap-0.5">
+                        <span className="text-gray-400">◆</span>{data.confidence_details.factors_neutral || 0}
+                      </span>
+                      {data.confidence_details.volatility_penalty < 0 && (
+                        <span className="text-orange-500 text-xs">
+                          (vol: {data.confidence_details.volatility_penalty})
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Quick Info */}
@@ -343,6 +371,47 @@ const Signals = ({ t, lang }) => {
               {/* Expanded Details */}
               {expanded === symbol && (
                 <div className="border-t border-gray-100 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
+                  {/* Confidence Breakdown - NEW */}
+                  {data.confidence_details && (
+                    <div className="mb-4">
+                      <div className="text-xs text-gray-500 mb-2">Güven Skoru Detayları</div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                        <div className="bg-white dark:bg-gray-800 p-2 rounded">
+                          <div className="text-gray-500">Faktör Uyumu</div>
+                          <div className="font-bold text-blue-600">{data.confidence_details.alignment_ratio}%</div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-2 rounded">
+                          <div className="text-gray-500">Veri Kalitesi</div>
+                          <div className="font-bold text-purple-600">+{data.confidence_details.data_quality}</div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-2 rounded">
+                          <div className="text-gray-500">Sinyal Gücü</div>
+                          <div className="font-bold text-indigo-600">+{data.confidence_details.signal_strength}</div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-2 rounded">
+                          <div className="text-gray-500">Trend Netliği</div>
+                          <div className="font-bold text-cyan-600">+{data.confidence_details.trend_clarity}</div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-2 rounded">
+                          <div className="text-gray-500">Volatilite</div>
+                          <div className={`font-bold ${data.confidence_details.volatility_penalty < 0 ? 'text-orange-500' : 'text-green-500'}`}>
+                            {data.confidence_details.volatility_penalty}
+                          </div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-2 rounded">
+                          <div className="text-gray-500">Faktörler</div>
+                          <div className="font-bold">
+                            <span className="text-green-500">{data.confidence_details.factors_buy}↑</span>
+                            {' '}
+                            <span className="text-red-500">{data.confidence_details.factors_sell}↓</span>
+                            {' '}
+                            <span className="text-gray-400">{data.confidence_details.factors_neutral}○</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Technical Indicators */}
                   {data.technical && (
                     <div className="mb-4">
