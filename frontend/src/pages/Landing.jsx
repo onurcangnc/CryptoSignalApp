@@ -356,10 +356,9 @@ const Landing = ({ onGetStarted, setLang, lang }) => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {blogPosts.map((post) => (
-              <a
+              <div
                 key={post.id}
-                href={post.url}
-                className="bg-gray-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-gray-700/50 hover:border-yellow-500/50 transition-all hover:-translate-y-2 hover:shadow-lg hover:shadow-yellow-500/20 cursor-pointer block"
+                className="bg-gray-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-gray-700/50 hover:border-yellow-500/50 transition-all hover:-translate-y-2 hover:shadow-lg hover:shadow-yellow-500/20"
               >
                 <div className="h-48 bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 flex items-center justify-center text-6xl">
                   {post.image}
@@ -368,11 +367,14 @@ const Landing = ({ onGetStarted, setLang, lang }) => {
                   <div className="text-sm text-gray-500 mb-2">{post.date}</div>
                   <h3 className="text-xl font-bold text-white mb-3">{post.title}</h3>
                   <p className="text-gray-400 text-sm leading-relaxed mb-4">{post.excerpt}</p>
-                  <span className="text-yellow-500 hover:text-yellow-400 font-medium text-sm transition-colors">
+                  <a
+                    href={post.url}
+                    className="text-yellow-500 hover:text-yellow-400 font-medium text-sm transition-colors inline-block"
+                  >
                     {lang === 'tr' ? 'Devamını Oku →' : 'Read More →'}
-                  </span>
+                  </a>
                 </div>
-              </a>
+              </div>
             ))}
           </div>
         </div>
