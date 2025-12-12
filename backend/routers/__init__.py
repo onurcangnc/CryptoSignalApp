@@ -17,6 +17,8 @@ from .websocket import router as websocket_router
 from .signal_stats import router as signal_stats_router
 from .payment import router as payment_router
 from .ads import router as ads_router
+from .watchlist import router as watchlist_router
+from .price_alerts import router as price_alerts_router
 
 __all__ = [
     'auth_router',
@@ -30,5 +32,7 @@ __all__ = [
     'websocket_router',
     'signal_stats_router',
     'payment_router',
-    'ads_router'
+    'ads_router',
+    'watchlist_router',
+    'price_alerts_router'
 ]

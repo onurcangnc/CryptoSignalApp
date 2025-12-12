@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../api'
+import { SignalPerformanceGrid } from '../components/SignalPerformance'
 
 const Signals = ({ t, lang }) => {
   const [signals, setSignals] = useState({})
@@ -235,43 +236,10 @@ const Signals = ({ t, lang }) => {
         </div>
       </div>
 
-      {/* Signal Performance (30 days) */}
-      {signalPerf && (
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              🎯 {lang === 'tr' ? 'Sinyal Performansı' : 'Signal Performance'}
-              <span className="text-xs text-gray-500 font-normal">(Son 30 Gün)</span>
-            </h3>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 backdrop-blur">
-              <div className="text-2xl font-bold text-green-600">
-                {signalPerf.success_rate ? `${signalPerf.success_rate.toFixed(1)}%` : 'N/A'}
-              </div>
-              <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Başarı Oranı</div>
-            </div>
-            <div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 backdrop-blur">
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {signalPerf.profitable || 0}/{signalPerf.total || 0}
-              </div>
-              <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Kârlı/Toplam</div>
-            </div>
-            <div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 backdrop-blur">
-              <div className="text-2xl font-bold text-green-500">
-                +{signalPerf.avg_profit_pct ? signalPerf.avg_profit_pct.toFixed(1) : '0'}%
-              </div>
-              <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Ort. Kâr</div>
-            </div>
-            <div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 backdrop-blur">
-              <div className="text-2xl font-bold text-red-500">
-                {signalPerf.avg_loss_pct ? signalPerf.avg_loss_pct.toFixed(1) : '0'}%
-              </div>
-              <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Ort. Zarar</div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Signal Performance (30 days) - NEW 4-CARD GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <SignalPerformanceGrid stats={signalPerf} />
+      </div>
 
       {/* Search & Filter */}
       <div className="flex flex-wrap gap-3">

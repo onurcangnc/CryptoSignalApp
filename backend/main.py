@@ -47,7 +47,9 @@ from routers import (
     websocket_router,
     signal_stats_router,
     payment_router,
-    ads_router
+    ads_router,
+    watchlist_router,
+    price_alerts_router
 )
 
 # =============================================================================
@@ -115,6 +117,12 @@ app.include_router(websocket_router)
 
 # Ads: /api/ads/*
 app.include_router(ads_router)
+
+# Watchlist: /api/watchlist/*
+app.include_router(watchlist_router)
+
+# Price Alerts: /api/price-alerts/*
+app.include_router(price_alerts_router)
 
 # =============================================================================
 # STARTUP EVENT - WebSocket Price Broadcast

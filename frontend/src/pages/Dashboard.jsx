@@ -4,6 +4,9 @@ import api from '../api'
 import { formatPrice, formatNumber, formatChange } from '../utils/formatters'
 import AnalysisModal from '../components/modals/AnalysisModal'
 import { useWebSocket } from '../hooks/useWebSocket'
+import { SignalPerformanceGrid } from '../components/SignalPerformance'
+import { Watchlist, FavoriteButton } from '../components/Watchlist'
+import { CreateAlertModal, PriceAlertsList } from '../components/PriceAlerts'
 
 const Dashboard = ({ t, lang, user }) => {
   const [coins, setCoins] = useState([])
@@ -16,6 +19,8 @@ const Dashboard = ({ t, lang, user }) => {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
+  const [alertModal, setAlertModal] = useState(null)
+  const [alertsRefreshKey, setAlertsRefreshKey] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
   const ITEMS_PER_PAGE = 100
 
@@ -218,39 +223,8 @@ const Dashboard = ({ t, lang, user }) => {
           </div>
         )}
 
-        {/* AI Signal Stats - IMPROVED */}
-        {signalStats && (
-          <div className="group bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 hover:border-green-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/20 hover:-translate-y-1">
-            <h3 className="text-gray-400 text-sm mb-2 flex items-center gap-2 group-hover:text-gray-300 transition-colors">
-              🎯 {lang === 'tr' ? 'AI Performansı' : 'AI Performance'}
-              <span className="text-xs text-gray-500">
-                ({lang === 'tr' ? '30 Gün' : '30 Days'})
-              </span>
-            </h3>
-            <div className="space-y-2">
-              <div className="flex items-baseline justify-between">
-                <span className="text-3xl font-bold text-green-500 group-hover:scale-105 transition-transform duration-300">
-                  {signalStats.success_rate ? `${signalStats.success_rate.toFixed(1)}%` : 'N/A'}
-                </span>
-                <span className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">
-                  {lang === 'tr' ? 'Başarı Oranı' : 'Success Rate'}
-                </span>
-              </div>
-              <div className="text-xs text-gray-500 leading-relaxed group-hover:text-gray-400 transition-colors">
-                {lang === 'tr'
-                  ? `${signalStats.profitable || 0}/${signalStats.total || 0} sinyal kârlı, ortalama %${(signalStats.avg_profit_pct || 0).toFixed(1)} kazanç`
-                  : `${signalStats.profitable || 0}/${signalStats.total || 0} signals profitable, avg ${(signalStats.avg_profit_pct || 0).toFixed(1)}% gain`
-                }
-              </div>
-              <div className="text-xs text-gray-600 italic mt-2 pt-2 border-t border-gray-700 group-hover:text-gray-500 transition-colors">
-                💡 {lang === 'tr'
-                  ? 'AI her 10 sinyalden ~' + Math.round((signalStats.success_rate || 0) / 10) + "'inde doğru tahmin yapıyor"
-                  : 'AI predicts correctly ~' + Math.round((signalStats.success_rate || 0) / 10) + ' out of 10 signals'
-                }
-              </div>
-            </div>
-          </div>
-        )}
+        {/* AI Performance - NEW 4-CARD GRID */}
+        <SignalPerformanceGrid stats={signalStats} />
 
         {/* Telegram Notification */}
         <a
@@ -389,6 +363,12 @@ const Dashboard = ({ t, lang, user }) => {
         </div>
       </div>
 
+      {/* Watchlist Section */}
+      <Watchlist prices={prices} onCoinClick={setSelected} lang={lang} />
+
+      {/* Price Alerts Section */}
+      <PriceAlertsList lang={lang} refreshKey={alertsRefreshKey} />
+
       {/* Third Row - Portfolio & Market Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Portfolio Summary */}
@@ -513,6 +493,8 @@ const Dashboard = ({ t, lang, user }) => {
               <th className="px-4 py-3 text-right hidden md:table-cell">{lang === 'tr' ? '7g Değişim' : '7d Change'}</th>
               <th className="px-4 py-3 text-right hidden lg:table-cell">{lang === 'tr' ? 'Piyasa Değeri' : 'Market Cap'}</th>
               <th className="px-4 py-3 text-right hidden lg:table-cell">{lang === 'tr' ? 'Hacim' : 'Volume'}</th>
+              <th className="px-4 py-3 text-center">⭐</th>
+              <th className="px-4 py-3 text-center">🔔</th>
             </tr>
           </thead>
           <tbody>
@@ -563,6 +545,21 @@ const Dashboard = ({ t, lang, user }) => {
                   </td>
                   <td className="px-4 py-3 text-right text-gray-400 hidden lg:table-cell">
                     {formatNumber(coin.volume || priceData.volume_24h)}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <FavoriteButton symbol={symbol} />
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setAlertModal({ coin, price })
+                      }}
+                      className="text-gray-400 hover:text-yellow-500 transition-colors"
+                      title={lang === 'tr' ? 'Fiyat Alarmı Kur' : 'Set Price Alert'}
+                    >
+                      🔔
+                    </button>
                   </td>
                 </tr>
               )
@@ -648,6 +645,21 @@ const Dashboard = ({ t, lang, user }) => {
           coin={selected}
           onClose={() => setSelected(null)}
           t={t}
+          lang={lang}
+        />
+      )}
+
+      {/* Price Alert Modal */}
+      {alertModal && (
+        <CreateAlertModal
+          coin={alertModal.coin}
+          currentPrice={alertModal.price}
+          onClose={() => setAlertModal(null)}
+          onSuccess={() => {
+            // Refresh alerts list by incrementing the key
+            setAlertsRefreshKey(prev => prev + 1)
+            setAlertModal(null)
+          }}
           lang={lang}
         />
       )}

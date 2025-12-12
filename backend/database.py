@@ -240,6 +240,31 @@ def init_db():
             )
         ''')
 
+        # User Watchlist (Favoriler)
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS user_watchlist (
+                user_id TEXT,
+                symbol TEXT,
+                added_at TEXT,
+                PRIMARY KEY(user_id, symbol)
+            )
+        ''')
+
+        # Price Alerts (Fiyat Alarmları)
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS price_alerts (
+                id TEXT PRIMARY KEY,
+                user_id TEXT,
+                symbol TEXT,
+                target_price REAL,
+                condition TEXT,
+                created_at TEXT,
+                triggered INTEGER DEFAULT 0,
+                triggered_at TEXT,
+                is_active INTEGER DEFAULT 1
+            )
+        ''')
+
         # Add indexes for performance
         c.execute("""
             CREATE INDEX IF NOT EXISTS idx_llm_usage_user_date
@@ -264,6 +289,18 @@ def init_db():
         c.execute("""
             CREATE INDEX IF NOT EXISTS idx_signal_tracking_check
             ON signal_tracking(check_date, is_successful)
+        """)
+        c.execute("""
+            CREATE INDEX IF NOT EXISTS idx_watchlist_user
+            ON user_watchlist(user_id, added_at DESC)
+        """)
+        c.execute("""
+            CREATE INDEX IF NOT EXISTS idx_price_alerts_user
+            ON price_alerts(user_id, is_active, triggered)
+        """)
+        c.execute("""
+            CREATE INDEX IF NOT EXISTS idx_price_alerts_active
+            ON price_alerts(is_active, triggered)
         """)
 
         # Default invites
@@ -822,8 +859,47 @@ def update_signal_result(signal_id: str, actual_price: float) -> None:
         conn.commit()
 
 
+def calculate_compound_return(profit_loss_pcts: list, initial_amount: float = 100) -> Dict:
+    """
+    Bileşik getiri simülasyonu hesapla
+
+    Args:
+        profit_loss_pcts: Her sinyalin P/L yüzdeleri listesi (tarih sırasına göre)
+        initial_amount: Başlangıç tutarı (varsayılan 100₺)
+
+    Returns:
+        Dict: initial_amount, final_amount, total_return_pct
+
+    Örnek:
+        [+10%, -5%, +15%] -> 100 * 1.10 * 0.95 * 1.15 = 120.175₺ (+20.175%)
+    """
+    if not profit_loss_pcts:
+        return {
+            "initial_amount": initial_amount,
+            "final_amount": initial_amount,
+            "total_return_pct": 0
+        }
+
+    amount = initial_amount
+
+    for pnl_pct in profit_loss_pcts:
+        # Aşırı değerleri sınırla (±50% max)
+        capped_pnl = max(-50, min(50, pnl_pct))
+        amount *= (1 + capped_pnl / 100)
+
+    total_return_pct = ((amount - initial_amount) / initial_amount) * 100
+
+    return {
+        "initial_amount": round(initial_amount, 2),
+        "final_amount": round(amount, 2),
+        "total_return_pct": round(total_return_pct, 2)
+    }
+
+
 def get_signal_success_rate(days: int = 30, symbol: str = None) -> Dict:
-    """Sinyal başarı oranı istatistikleri"""
+    """Sinyal başarı oranı istatistikleri - Gelişmiş versiyon"""
+    MIN_SIGNALS_REQUIRED = 30  # İstatistiksel anlamlılık için minimum
+
     try:
         with get_db() as conn:
             # Tarih filtresi
@@ -852,7 +928,82 @@ def get_signal_success_rate(days: int = 30, symbol: str = None) -> Dict:
                     (since,)
                 ).fetchone()["cnt"]
 
+            # Yetersiz veri kontrolü
+            if total < MIN_SIGNALS_REQUIRED:
+                return {
+                    "insufficient_data": True,
+                    "total_signals": total,
+                    "min_required": MIN_SIGNALS_REQUIRED,
+                    "message": f"AI henüz yeterli veri toplamadı. {MIN_SIGNALS_REQUIRED - total} sinyal daha gerekiyor.",
+                    "progress_pct": round((total / MIN_SIGNALS_REQUIRED) * 100, 1)
+                }
+
             success_rate = (successful / total * 100) if total > 0 else 0
+
+            # YENİ: Ortalama kazanç (sadece kârlı sinyaller)
+            avg_profit_row = conn.execute(
+                """SELECT AVG(profit_loss_pct) as avg_profit
+                   FROM signal_tracking
+                   WHERE created_at >= ? AND is_successful=1 AND profit_loss_pct > 0""",
+                (since,)
+            ).fetchone()
+            avg_profit = avg_profit_row["avg_profit"] if avg_profit_row["avg_profit"] else 0
+
+            # YENİ: Ortalama kayıp (sadece zararlı sinyaller)
+            avg_loss_row = conn.execute(
+                """SELECT AVG(profit_loss_pct) as avg_loss
+                   FROM signal_tracking
+                   WHERE created_at >= ? AND is_successful=0 AND profit_loss_pct < 0""",
+                (since,)
+            ).fetchone()
+            avg_loss = avg_loss_row["avg_loss"] if avg_loss_row["avg_loss"] else 0
+
+            # YENİ: Bileşik getiri simülasyonu (100₺ → X₺)
+            all_signals = conn.execute(
+                """SELECT profit_loss_pct FROM signal_tracking
+                   WHERE created_at >= ? AND result IS NOT NULL
+                   ORDER BY created_at ASC""",
+                (since,)
+            ).fetchall()
+
+            compound_return = calculate_compound_return([s["profit_loss_pct"] for s in all_signals])
+
+            # YENİ: En başarılı 3 sinyal
+            top_signals_rows = conn.execute(
+                """SELECT symbol, profit_loss_pct, created_at, signal
+                   FROM signal_tracking
+                   WHERE created_at >= ? AND is_successful=1
+                   ORDER BY profit_loss_pct DESC LIMIT 3""",
+                (since,)
+            ).fetchall()
+
+            top_signals = [
+                {
+                    "symbol": row["symbol"],
+                    "profit_pct": round(row["profit_loss_pct"], 1),
+                    "date": row["created_at"],
+                    "signal": row["signal"]
+                }
+                for row in top_signals_rows
+            ]
+
+            # YENİ: En kötü sinyal (şeffaflık için)
+            worst_signal_row = conn.execute(
+                """SELECT symbol, profit_loss_pct, created_at, signal
+                   FROM signal_tracking
+                   WHERE created_at >= ? AND result IS NOT NULL
+                   ORDER BY profit_loss_pct ASC LIMIT 1""",
+                (since,)
+            ).fetchone()
+
+            worst_signal = None
+            if worst_signal_row and worst_signal_row["profit_loss_pct"] < 0:
+                worst_signal = {
+                    "symbol": worst_signal_row["symbol"],
+                    "loss_pct": round(worst_signal_row["profit_loss_pct"], 1),
+                    "date": worst_signal_row["created_at"],
+                    "signal": worst_signal_row["signal"]
+                }
 
             # Sinyal tiplerine göre breakdown
             signal_breakdown = conn.execute(
@@ -871,6 +1022,15 @@ def get_signal_success_rate(days: int = 30, symbol: str = None) -> Dict:
                 "success_rate": round(success_rate, 2),
                 "days": days,
                 "symbol": symbol,
+
+                # YENİ: Gelişmiş metrikler
+                "avg_profit_pct": round(avg_profit, 2),
+                "avg_loss_pct": round(avg_loss, 2),
+                "compound_return": compound_return,
+                "top_signals": top_signals,
+                "worst_signal": worst_signal,
+
+                # Mevcut breakdown
                 "by_signal": [
                     {
                         "signal": row["signal"],
@@ -893,3 +1053,203 @@ def get_signal_success_rate(days: int = 30, symbol: str = None) -> Dict:
             "symbol": symbol,
             "by_signal": []
         }
+
+
+# =============================================================================
+# WATCHLIST (Favoriler)
+# =============================================================================
+
+def add_to_watchlist(user_id: str, symbol: str) -> bool:
+    """Favori listesine coin ekle"""
+    try:
+        with get_db() as conn:
+            c = conn.cursor()
+            c.execute("""
+                INSERT OR IGNORE INTO user_watchlist (user_id, symbol, added_at)
+                VALUES (?, ?, ?)
+            """, (user_id, symbol.upper(), datetime.utcnow().isoformat()))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"[DB] Watchlist add error: {e}")
+        return False
+
+
+def remove_from_watchlist(user_id: str, symbol: str) -> bool:
+    """Favori listesinden coin çıkar"""
+    try:
+        with get_db() as conn:
+            c = conn.cursor()
+            c.execute("""
+                DELETE FROM user_watchlist
+                WHERE user_id = ? AND symbol = ?
+            """, (user_id, symbol.upper()))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"[DB] Watchlist remove error: {e}")
+        return False
+
+
+def get_user_watchlist(user_id: str) -> List[str]:
+    """Kullanıcının favori coin listesini getir"""
+    try:
+        with get_db() as conn:
+            c = conn.cursor()
+            c.execute("""
+                SELECT symbol, added_at
+                FROM user_watchlist
+                WHERE user_id = ?
+                ORDER BY added_at DESC
+            """, (user_id,))
+
+            return [
+                {
+                    "symbol": row["symbol"],
+                    "added_at": row["added_at"]
+                }
+                for row in c.fetchall()
+            ]
+    except Exception as e:
+        print(f"[DB] Watchlist get error: {e}")
+        return []
+
+
+def is_in_watchlist(user_id: str, symbol: str) -> bool:
+    """Coin favori listesinde mi kontrol et"""
+    try:
+        with get_db() as conn:
+            c = conn.cursor()
+            c.execute("""
+                SELECT 1 FROM user_watchlist
+                WHERE user_id = ? AND symbol = ?
+            """, (user_id, symbol.upper()))
+            return c.fetchone() is not None
+    except Exception as e:
+        print(f"[DB] Watchlist check error: {e}")
+        return False
+
+
+# =============================================================================
+# PRICE ALERTS (Fiyat Alarmları)
+# =============================================================================
+
+def create_price_alert(user_id: str, symbol: str, target_price: float, condition: str) -> Optional[str]:
+    """
+    Fiyat alarmı oluştur
+
+    Args:
+        user_id: Kullanıcı ID
+        symbol: Coin sembolü
+        target_price: Hedef fiyat
+        condition: 'above' (yukarı) veya 'below' (aşağı)
+
+    Returns:
+        Alert ID veya None
+    """
+    import uuid
+
+    try:
+        alert_id = str(uuid.uuid4())
+        with get_db() as conn:
+            c = conn.cursor()
+            c.execute("""
+                INSERT INTO price_alerts
+                (id, user_id, symbol, target_price, condition, created_at, triggered, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, 0, 1)
+            """, (alert_id, user_id, symbol.upper(), target_price, condition, datetime.utcnow().isoformat()))
+            conn.commit()
+            return alert_id
+    except Exception as e:
+        print(f"[DB] Price alert create error: {e}")
+        return None
+
+
+def get_user_price_alerts(user_id: str, active_only: bool = True) -> List[Dict]:
+    """Kullanıcının fiyat alarmlarını getir"""
+    try:
+        with get_db() as conn:
+            c = conn.cursor()
+
+            if active_only:
+                c.execute("""
+                    SELECT * FROM price_alerts
+                    WHERE user_id = ? AND is_active = 1
+                    ORDER BY created_at DESC
+                """, (user_id,))
+            else:
+                c.execute("""
+                    SELECT * FROM price_alerts
+                    WHERE user_id = ?
+                    ORDER BY created_at DESC
+                """, (user_id,))
+
+            return [dict(row) for row in c.fetchall()]
+    except Exception as e:
+        print(f"[DB] Price alerts get error: {e}")
+        return []
+
+
+def get_active_price_alerts() -> List[Dict]:
+    """Tüm aktif fiyat alarmlarını getir (worker için)"""
+    try:
+        with get_db() as conn:
+            c = conn.cursor()
+            c.execute("""
+                SELECT * FROM price_alerts
+                WHERE is_active = 1 AND triggered = 0
+            """)
+            return [dict(row) for row in c.fetchall()]
+    except Exception as e:
+        print(f"[DB] Active alerts get error: {e}")
+        return []
+
+
+def trigger_price_alert(alert_id: str) -> bool:
+    """Fiyat alarmını tetiklenmiş olarak işaretle"""
+    try:
+        with get_db() as conn:
+            c = conn.cursor()
+            c.execute("""
+                UPDATE price_alerts
+                SET triggered = 1, triggered_at = ?
+                WHERE id = ?
+            """, (datetime.utcnow().isoformat(), alert_id))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"[DB] Alert trigger error: {e}")
+        return False
+
+
+def delete_price_alert(alert_id: str, user_id: str) -> bool:
+    """Fiyat alarmını sil"""
+    try:
+        with get_db() as conn:
+            c = conn.cursor()
+            c.execute("""
+                DELETE FROM price_alerts
+                WHERE id = ? AND user_id = ?
+            """, (alert_id, user_id))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"[DB] Alert delete error: {e}")
+        return False
+
+
+def deactivate_price_alert(alert_id: str, user_id: str) -> bool:
+    """Fiyat alarmını deaktif et"""
+    try:
+        with get_db() as conn:
+            c = conn.cursor()
+            c.execute("""
+                UPDATE price_alerts
+                SET is_active = 0
+                WHERE id = ? AND user_id = ?
+            """, (alert_id, user_id))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"[DB] Alert deactivate error: {e}")
+        return False
