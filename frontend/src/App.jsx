@@ -1,5 +1,5 @@
 // src/App.jsx
-// CryptoSignal AI - Main App Component v6.0
+// CryptoSignal AI - Main App Component v7.0
 import { useState, useEffect } from 'react'
 
 // Utils
@@ -11,6 +11,7 @@ import Login from './components/Login'
 import Toast from './components/Toast'
 
 // Pages
+import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import Signals from './pages/Signals'
 import AISummary from './pages/AISummary'
@@ -24,6 +25,7 @@ export default function App() {
   const [current, setCurrent] = useState('dashboard')
   const [lang, setLang] = useState('tr')
   const [loading, setLoading] = useState(true)
+  const [showLanding, setShowLanding] = useState(true)
 
   const t = translations[lang]
 
@@ -33,6 +35,7 @@ export default function App() {
     if (savedUser) {
       try {
         setUser(JSON.parse(savedUser))
+        setShowLanding(false) // User logged in, skip landing
       } catch (e) {
         localStorage.removeItem('user')
         localStorage.removeItem('token')
@@ -43,6 +46,7 @@ export default function App() {
 
   const handleLogin = (userData) => {
     setUser(userData)
+    setShowLanding(false)
   }
 
   const handleLogout = () => {
@@ -50,6 +54,11 @@ export default function App() {
     localStorage.removeItem('user')
     setUser(null)
     setCurrent('dashboard')
+    setShowLanding(true)
+  }
+
+  const handleGetStarted = () => {
+    setShowLanding(false)
   }
 
   // Loading state
@@ -64,9 +73,26 @@ export default function App() {
     )
   }
 
+  // Show landing page if not logged in and showLanding is true
+  if (showLanding && !user) {
+    return <Landing onGetStarted={handleGetStarted} lang={lang} setLang={setLang} />
+  }
+
   // Not logged in - show login
   if (!user) {
-    return <Login onLogin={handleLogin} t={t} lang={lang} />
+    return (
+      <div>
+        <div className="absolute top-4 left-4 z-50">
+          <button
+            onClick={() => setShowLanding(true)}
+            className="px-4 py-2 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all flex items-center gap-2"
+          >
+            ← {lang === 'tr' ? 'Ana Sayfa' : 'Home'}
+          </button>
+        </div>
+        <Login onLogin={handleLogin} t={t} lang={lang} />
+      </div>
+    )
   }
 
   // Main app

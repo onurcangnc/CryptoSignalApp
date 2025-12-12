@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Allow: /blog-bitcoin-2025.html
+Allow: /blog-altcoin-season.html
+Allow: /blog-risk-management.html
+
+# AdSense
+User-agent: Mediapartners-Google
+Allow: /
+
+# Sitemap
+Sitemap: https://pipelinetest.com.tr/sitemap.xml
