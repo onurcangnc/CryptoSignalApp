@@ -124,6 +124,21 @@ def _extract_alignment(details: dict) -> int:
     return 0
 
 
+def _has_indicators(analysis: dict) -> bool:
+    """
+    İndikatör verisi var mı kontrol et.
+    RSI, MACD, MA gibi temel indikatörler yoksa False döner.
+    """
+    ind = analysis.get("indicators") or {}
+    vals = [
+        analysis.get("rsi"), analysis.get("macd"), analysis.get("ma"),
+        ind.get("rsi"), ind.get("macd"), ind.get("ma"),
+    ]
+    # En az bir geçerli indikatör değeri olmalı
+    ok = any(v not in (None, "N/A", "na", "NA", "") for v in vals)
+    return ok
+
+
 def should_emit_signal(analysis: dict, risk_level: str) -> tuple:
     """
     AL/SAT üretmeden önce kalite kontrolü.
@@ -143,6 +158,10 @@ def should_emit_signal(analysis: dict, risk_level: str) -> tuple:
     # Trade sinyali değilse güvenli tarafta kal
     if signal not in BUY_SIGNALS and signal not in SELL_SIGNALS:
         return "HOLD", confidence, f"unknown_signal_{signal}"
+
+    # İndikatör verisi yoksa trade verme (GPT-5.2 önerisi)
+    if not _has_indicators(analysis):
+        return "HOLD", confidence, "missing_indicators"
 
     # Risk seviyesine göre threshold ayarla
     risk = _norm_risk(risk_level)
