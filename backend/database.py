@@ -1030,21 +1030,32 @@ def get_signal_success_rate(days: int = 30, symbol: str = None) -> Dict:
             ).fetchall()
 
             # YENİ: Trade (AL/SAT) vs BEKLE ayrımı
+            # trade_total: Tüm üretilen trade sinyalleri (result şartı YOK)
             trade_total = conn.execute(
                 """SELECT COUNT(*) as cnt FROM signal_tracking
-                   WHERE created_at >= ? AND result IS NOT NULL
+                   WHERE created_at >= ?
                    AND signal IN ('AL', 'BUY', 'STRONG_BUY', 'GÜÇLÜ AL', 'SAT', 'SELL', 'STRONG_SELL', 'GÜÇLÜ SAT')""",
                 (since,)
             ).fetchone()["cnt"]
 
+            # trade_evaluated: Sonucu kesinleşmiş trade'ler (result/actual_price dolu)
+            trade_evaluated = conn.execute(
+                """SELECT COUNT(*) as cnt FROM signal_tracking
+                   WHERE created_at >= ? AND result IS NOT NULL AND actual_price IS NOT NULL
+                   AND signal IN ('AL', 'BUY', 'STRONG_BUY', 'GÜÇLÜ AL', 'SAT', 'SELL', 'STRONG_SELL', 'GÜÇLÜ SAT')""",
+                (since,)
+            ).fetchone()["cnt"]
+
+            # trade_successful: Başarılı trade'ler (evaluated içinden)
             trade_successful = conn.execute(
                 """SELECT COUNT(*) as cnt FROM signal_tracking
-                   WHERE created_at >= ? AND is_successful=1
+                   WHERE created_at >= ? AND is_successful=1 AND result IS NOT NULL
                    AND signal IN ('AL', 'BUY', 'STRONG_BUY', 'GÜÇLÜ AL', 'SAT', 'SELL', 'STRONG_SELL', 'GÜÇLÜ SAT')""",
                 (since,)
             ).fetchone()["cnt"]
 
-            trade_success_rate = (trade_successful / trade_total * 100) if trade_total > 0 else 0
+            # Success rate: evaluated trade'ler üzerinden hesapla
+            trade_success_rate = (trade_successful / trade_evaluated * 100) if trade_evaluated > 0 else 0
 
             # YENİ: Gelişmiş Trading Metrikleri
             # Avg Win (sadece kazançlı trade'ler)
@@ -1107,9 +1118,10 @@ def get_signal_success_rate(days: int = 30, symbol: str = None) -> Dict:
                 "symbol": symbol,
 
                 # YENİ: Trade-only metrikler (AL/SAT - BEKLE hariç)
-                "trade_total": trade_total,
-                "trade_successful": trade_successful,
-                "trade_success_rate": round(trade_success_rate, 2),
+                "trade_total": trade_total,           # Tüm trade sinyalleri (henüz değerlendirilmemiş dahil)
+                "trade_evaluated": trade_evaluated,   # Sonucu kesinleşmiş trade'ler
+                "trade_successful": trade_successful, # Başarılı trade'ler
+                "trade_success_rate": round(trade_success_rate, 2),  # evaluated üzerinden hesaplanır
 
                 # YENİ: Gelişmiş metrikler
                 "avg_profit_pct": round(avg_profit, 2),
