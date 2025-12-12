@@ -311,6 +311,51 @@ class SentimentAnalysisStrategy:
 - **Mobile Responsive**: Tüm cihazlarda uyumlu
 - **Dark Mode**: Modern glassmorphism design
 
+### 📈 Trading Tools
+
+#### 7. **DCA Calculator**
+- Dollar Cost Averaging stratejisi hesaplama
+- Günlük, haftalık, aylık yatırım aralıkları
+- Geçmiş performans simülasyonu
+- Görsel grafiklerle sonuç analizi
+- ROI ve ortalama maliyet hesaplama
+
+#### 8. **Backtesting Engine**
+- Strateji test aracı (RSI, MACD, Moving Average)
+- Özelleştirilebilir parametreler
+- Win rate, profit factor, max drawdown metrikleri
+- Görsel grafik sonuçları
+- Entry/exit point analizi
+
+#### 9. **Watchlist Management**
+- Kişisel coin takip listesi
+- Favorilere hızlı erişim
+- Gerçek zamanlı fiyat güncellemeleri
+- Özelleştirilebilir görünüm
+
+#### 10. **Price Alerts**
+- Özel fiyat bildirimleri
+- Üst/alt eşik koşulları
+- Çoklu alert desteği
+- Telegram entegrasyonu
+
+#### 11. **TradingView Integration**
+- Profesyonel grafik widget'ı
+- 100+ teknik indikatör
+- Çoklu zaman dilimi desteği
+- Çizim araçları
+
+### 🎨 UI/UX Features
+
+- **Skeleton Loaders**: Modern loading durumları
+- **Empty States**: Bilgilendirici boş durum illüstrasyonları
+- **Risk Disclaimers**: Google AdSense uyumlu uyarılar
+- **Ad Banner System**: Reklam entegrasyonu
+- **Typography Hierarchy**: Tutarlı tipografi sistemi
+- **Color Palette**: Amber/Orange temalı renk paleti
+- **Animations**: Smooth geçiş animasyonları (fade-in, slide-up, shimmer)
+- **Accessibility**: Focus states ve semantic HTML
+
 ---
 
 ## 🚀 Kurulum
@@ -678,6 +723,105 @@ ws.onmessage = (event) => {
 };
 ```
 
+### DCA Calculator
+
+#### Calculate DCA
+```http
+POST /api/dca/calculate
+Content-Type: application/json
+
+{
+  "coin": "BTC",
+  "investment_amount": 100,
+  "frequency": "weekly",
+  "start_date": "2024-01-01",
+  "end_date": "2024-12-31"
+}
+
+Response:
+{
+  "total_invested": 5200,
+  "current_value": 6500,
+  "total_coins": 0.085,
+  "average_cost": 61176.47,
+  "roi_percentage": 25.0,
+  "chart_data": [...]
+}
+```
+
+### Backtesting
+
+#### Run Backtest
+```http
+POST /api/backtesting/run
+Content-Type: application/json
+
+{
+  "coin": "BTC",
+  "strategy": "rsi",
+  "parameters": {
+    "rsi_period": 14,
+    "oversold": 30,
+    "overbought": 70
+  },
+  "start_date": "2024-01-01",
+  "end_date": "2024-12-31",
+  "initial_capital": 10000
+}
+
+Response:
+{
+  "total_trades": 45,
+  "winning_trades": 28,
+  "losing_trades": 17,
+  "win_rate": 62.2,
+  "profit_factor": 1.85,
+  "max_drawdown": 12.5,
+  "final_capital": 14250,
+  "trades": [...]
+}
+```
+
+### Watchlist
+
+#### Get Watchlist
+```http
+GET /api/watchlist
+Authorization: Bearer {token}
+```
+
+#### Add to Watchlist
+```http
+POST /api/watchlist
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "coin": "SOL"
+}
+```
+
+### Price Alerts
+
+#### Get Alerts
+```http
+GET /api/price-alerts
+Authorization: Bearer {token}
+```
+
+#### Create Alert
+```http
+POST /api/price-alerts
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "coin": "BTC",
+  "condition": "above",
+  "target_price": 70000
+}
+```
+
 ### Interactive API Docs
 
 - **Swagger UI**: `http://localhost:8000/docs`
@@ -701,7 +845,27 @@ backend/workers/
 ├── worker_ai_analyst.py      # AI-powered analiz
 ├── worker_signal_checker.py  # Sinyal doğrulama
 ├── worker_telegram.py        # Kullanıcı bildirimleri
-└── worker_telegram_admin.py  # Admin bildirimleri
+├── worker_telegram_admin.py  # Admin bildirimleri
+└── worker_price_alerts.py    # Fiyat alert tetikleyici
+
+frontend/src/components/ui/   # Reusable UI Components
+├── index.js                  # Component exports
+├── AdBanner.jsx              # Google AdSense uyumlu reklam
+├── SkeletonLoader.jsx        # Skeleton loading components
+├── EmptyState.jsx            # Empty state illüstrasyonları
+└── Disclaimer.jsx            # Risk disclaimer components
+
+frontend/src/pages/           # Page Components
+├── Dashboard.jsx             # Ana dashboard
+├── Signals.jsx               # Trading sinyalleri
+├── AISummary.jsx             # AI özet sayfası
+├── News.jsx                  # Haber akışı
+├── Portfolio.jsx             # Portföy yönetimi
+├── DCACalculator.jsx         # DCA hesaplama aracı
+├── Backtesting.jsx           # Strateji backtesting
+├── Premium.jsx               # Premium abonelik
+├── Admin.jsx                 # Admin paneli
+└── Landing.jsx               # Landing page
 ```
 
 ### 1. **worker_prices.py**
