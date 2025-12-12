@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Teknik analiz temelleri ve kripto para grafik okuma rehberi. Destek-direnç, göstergeler ve grafik formasyonları ile trading stratejileri.">
+    <meta name="keywords" content="teknik analiz, grafik okuma, kripto trading, RSI, MACD, fibonacci, support resistance">
+    <title>Teknik Analiz 101: Kripto Para Grafiklerini Okuma Rehberi | CryptoSignal AI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        .container { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+        header { margin-bottom: 40px; }
+        h1 { font-size: 2.5rem; color: #fbbf24; margin-bottom: 10px; }
+        .meta { color: #9ca3af; font-size: 0.9rem; margin-bottom: 30px; }
+        .content { background: rgba(31, 41, 55, 0.5); padding: 30px; border-radius: 12px; }
+        h2 { color: #fbbf24; margin-top: 30px; margin-bottom: 15px; }
+        h3 { color: #60a5fa; margin-top: 20px; margin-bottom: 10px; }
+        p { margin-bottom: 15px; }
+        ul { margin-left: 20px; margin-bottom: 15px; }
+        .tip-box { background: rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e; padding: 15px; margin: 20px 0; }
+        .example-box { background: rgba(96, 165, 250, 0.1); border-left: 4px solid #60a5fa; padding: 15px; margin: 20px 0; }
+        .warning-box { background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; }
+        .cta { background: #fbbf24; color: #1a1a2e; padding: 15px 30px; border-radius: 8px; display: inline-block; margin-top: 30px; text-decoration: none; font-weight: bold; }
+        .indicator-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 20px 0; }
+        .indicator-card { background: rgba(31, 41, 55, 0.7); padding: 20px; border-radius: 8px; border-left: 3px solid #fbbf24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📈 Teknik Analiz 101: Kripto Para Grafiklerini Okuma Rehberi</h1>
+            <div class="meta">3 Aralık 2025 | Trading Eğitimi</div>
+        </header>
+
+        <div class="content">
+            <p>Teknik analiz, geçmiş fiyat hareketlerini inceleyerek gelecekteki fiyat yönünü tahmin etme sanatıdır. Bu rehberde, kripto para grafiklerini okumak ve başarılı trading kararları vermek için ihtiyacınız olan tüm temel bilgileri öğreneceksiniz.</p>
+
+            <h2>🎯 Teknik Analiz Nedir?</h2>
+            <p>Teknik analiz, üç temel prensibe dayanır:</p>
+            <ul>
+                <li><strong>Fiyat her şeyi iskonto eder:</strong> Grafikteki fiyat, tüm bilgileri yansıtır</li>
+                <li><strong>Fiyat trendler halinde hareket eder:</strong> Rastgele değil, belli yönlere doğru</li>
+                <li><strong>Tarih tekerrür eder:</strong> Benzer formasyonlar, benzer sonuçlar verir</li>
+            </ul>
+
+            <h2>📊 Temel Grafik Türleri</h2>
+
+            <h3>1. Mum (Candlestick) Grafikleri</h3>
+            <p>En popüler grafik türü. Her mum 4 bilgi sunar:</p>
+            <ul>
+                <li><strong>Açılış (Open):</strong> Periyodun başlangıç fiyatı</li>
+                <li><strong>Kapanış (Close):</strong> Periyodun bitiş fiyatı</li>
+                <li><strong>En Yüksek (High):</strong> Periyo düşük içindeki en yüksek fiyat</li>
+                <li><strong>En Düşük (Low):</strong> Periyod içindeki en düşük fiyat</li>
+            </ul>
+
+            <div class="tip-box">
+                <strong>💡 Mum Renkleri:</strong><br>
+                • Yeşil/Beyaz Mum: Kapanış > Açılış (Yükseliş)<br>
+                • Kırmızı/Siyah Mum: Kapanış < Açılış (Düşüş)
+            </div>
+
+            <h3>2. Zaman Çerçeveleri (Timeframes)</h3>
+            <ul>
+                <li><strong>1m, 5m, 15m:</strong> Scalping için (günlük onlarca işlem)</li>
+                <li><strong>1h, 4h:</strong> Day trading için (günde birkaç işlem)</li>
+                <li><strong>1D, 1W:</strong> Swing trading için (haftalarca tutma)</li>
+            </ul>
+
+            <h2>📏 Destek ve Direnç Seviyeleri</h2>
+
+            <h3>Destek (Support)</h3>
+            <p>Fiyatın düşüşünün durduğu, alım baskısının arttığı seviye.</p>
+            <div class="example-box">
+                <strong>Örnek:</strong> Bitcoin $60,000'den birkaç kez döndü → Güçlü destek
+            </div>
+
+            <h3>Direnç (Resistance)</h3>
+            <p>Fiyatın yükselişinin durduğu, satış baskısının arttığı seviye.</p>
+            <div class="example-box">
+                <strong>Örnek:</strong> Ethereum $4,000'i 3 kez geçemedi → Güçlü direnç
+            </div>
+
+            <div class="tip-box">
+                <strong>💡 Altın Kural:</strong><br>
+                Destek kırılırsa → Yeni direnç olur<br>
+                Direnç kırılırsa → Yeni destek olur
+            </div>
+
+            <h2>🔧 Temel Teknik Göstergeler</h2>
+
+            <div class="indicator-grid">
+                <div class="indicator-card">
+                    <h4>📊 RSI (Relative Strength Index)</h4>
+                    <p><strong>Ne İşe Yarar:</strong> Aşırı alım/aşırı satım tespiti</p>
+                    <p><strong>Nasıl Kullanılır:</strong></p>
+                    <ul>
+                        <li>RSI > 70: Aşırı alım (satış sinyali)</li>
+                        <li>RSI < 30: Aşırı satım (alım sinyali)</li>
+                    </ul>
+                </div>
+
+                <div class="indicator-card">
+                    <h4>📈 MACD (Moving Average Convergence Divergence)</h4>
+                    <p><strong>Ne İşe Yarar:</strong> Trend yönü ve momentum</p>
+                    <p><strong>Nasıl Kullanılır:</strong></p>
+                    <ul>
+                        <li>MACD > Sinyal: Alım</li>
+                        <li>MACD < Sinyal: Satım</li>
+                    </ul>
+                </div>
+
+                <div class="indicator-card">
+                    <h4>📉 Hareketli Ortalamalar (MA)</h4>
+                    <p><strong>Ne İşe Yarar:</strong> Trend belirleme, destek/direnç</p>
+                    <p><strong>Popüler Ayarlar:</strong></p>
+                    <ul>
+                        <li>MA(50): Orta vadeli trend</li>
+                        <li>MA(200): Uzun vadeli trend</li>
+                    </ul>
+                </div>
+
+                <div class="indicator-card">
+                    <h4>📊 Bollinger Bands</h4>
+                    <p><strong>Ne İşe Yarar:</strong> Volatilite ölçümü</p>
+                    <p><strong>Nasıl Kullanılır:</strong></p>
+                    <ul>
+                        <li>Bantlar daralıyor: Patlama yakın</li>
+                        <li>Fiyat üst bantta: Aşırı alım</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h2>🔺 Önemli Grafik Formasyonları</h2>
+
+            <h3>Yükseliş Formasyonları</h3>
+            <ul>
+                <li><strong>Double Bottom (Çift Dip):</strong> W şekli, güçlü yükseliş sinyali</li>
+                <li><strong>Head and Shoulders Bottom:</strong> Ters H&S, trend dönüşü</li>
+                <li><strong>Ascending Triangle:</strong> Yükselen üçgen, breakout potansiyeli</li>
+                <li><strong>Bull Flag:</strong> Bayrak formasyonu, devam paterni</li>
+            </ul>
+
+            <h3>Düşüş Formasyonları</h3>
+            <ul>
+                <li><strong>Double Top (Çift Tepe):</strong> M şekli, güçlü düşüş sinyali</li>
+                <li><strong>Head and Shoulders:</strong> Baş-omuz, trend dönüşü</li>
+                <li><strong>Descending Triangle:</strong> Alçalan üçgen, breakdown riski</li>
+                <li><strong>Bear Flag:</strong> Ayı bayrağı, düşüş devamı</li>
+            </ul>
+
+            <h2>🎯 Fibonacci Retracement</h2>
+            <p>Fiyat düzeltmelerinde kullanılan popüler bir araç:</p>
+            <ul>
+                <li><strong>%23.6:</strong> Zayıf düzeltme</li>
+                <li><strong>%38.2:</strong> Orta seviye düzeltme</li>
+                <li><strong>%50.0:</strong> Önemli psikolojik seviye</li>
+                <li><strong>%61.8:</strong> Altın oran, güçlü destek/direnç</li>
+                <li><strong>%78.6:</strong> Derin düzeltme</li>
+            </ul>
+
+            <div class="example-box">
+                <strong>Kullanım Örneği:</strong><br>
+                Bitcoin $50k'dan $70k'ya çıktı → Düzeldi<br>
+                Fib %61.8 seviyesi: $57,360 (güçlü alım fırsatı)
+            </div>
+
+            <h2>📐 Hacim Analizi (Volume)</h2>
+            <p>Hacim, fiyat hareketlerinin gücünü gösterir:</p>
+            <ul>
+                <li><strong>Yükseliş + Yüksek Hacim:</strong> Güçlü alım, devam edebilir</li>
+                <li><strong>Yükseliş + Düşük Hacim:</strong> Zayıf hareket, dikkatli ol</li>
+                <li><strong>Düşüş + Yüksek Hacim:</strong> Güçlü satış, tehlikeli</li>
+                <li><strong>Düşüş + Düşük Hacim:</strong> Zayıf satış, fırsat olabilir</li>
+            </ul>
+
+            <h2>🎓 Başlangıç İçin 3 Gösterge Stratejisi</h2>
+
+            <h3>Strateji: RSI + MA + MACD</h3>
+            <p><strong>Alım Sinyali (3'ü bir arada):</strong></p>
+            <ul>
+                <li>RSI < 30 (aşırı satım)</li>
+                <li>Fiyat MA(50)'nin üzerine çıktı</li>
+                <li>MACD sinyal çizgisini yukarı kesti</li>
+            </ul>
+
+            <p><strong>Satım Sinyali (3'ü bir arada):</strong></p>
+            <ul>
+                <li>RSI > 70 (aşırı alım)</li>
+                <li>Fiyat MA(50)'nin altına düştü</li>
+                <li>MACD sinyal çizgisini aşağı kesti</li>
+            </ul>
+
+            <div class="tip-box">
+                <strong>💡 Pro İpucu:</strong> Tek göstergeye güvenmeyin! Birden fazla gösterge onayı bekleyin (confirmation).
+            </div>
+
+            <h2>⚠️ Yaygın Hatalar</h2>
+
+            <div class="warning-box">
+                <strong>Sakın Bunları Yapmayın:</strong>
+            </div>
+
+            <ul>
+                <li><strong>Overtrading:</strong> Her harekette işlem yapmak</li>
+                <li><strong>Gösterge Kalabalığı:</strong> Çok fazla gösterge eklemek</li>
+                <li><strong>Stop-Loss Kullanmamak:</strong> Risk yönetimi olmadan trading</li>
+                <li><strong>FOMO:</strong> Pumplanmış coin'lere atlamak</li>
+                <li><strong>Revenge Trading:</strong> Kaybı hemen telafi etmeye çalışmak</li>
+                <li><strong>Pattern Forcing:</strong> Olmayan formasyonları görmeye çalışmak</li>
+            </ul>
+
+            <h2>📚 Öğrenme Yol Haritası</h2>
+
+            <h3>1. Hafta: Temel Bilgiler</h3>
+            <ul>
+                <li>Mum grafikleri okuma</li>
+                <li>Destek-direnç çizme</li>
+                <li>Trend belirleme</li>
+            </ul>
+
+            <h3>2-3. Hafta: Göstergeler</h3>
+            <ul>
+                <li>RSI kullanımı</li>
+                <li>MACD stratejileri</li>
+                <li>Hareketli ortalamalar</li>
+            </ul>
+
+            <h3>4-8. Hafta: İleri Seviye</h3>
+            <ul>
+                <li>Grafik formasyonları</li>
+                <li>Fibonacci analizi</li>
+                <li>Hacim profili</li>
+                <li>Elliott Wave Theory</li>
+            </ul>
+
+            <h3>9+ Hafta: Pratik ve Deneyim</h3>
+            <ul>
+                <li>Demo hesapta pratik</li>
+                <li>Küçük sermaye ile gerçek işlemler</li>
+                <li>İşlem günlüğü tutma</li>
+                <li>Stratejinizi geliştirme</li>
+            </ul>
+
+            <h2>🛠️ Önerilen Araçlar</h2>
+            <ul>
+                <li><strong>TradingView:</strong> En iyi grafik platformu</li>
+                <li><strong>Coinigy:</strong> Çoklu exchange desteği</li>
+                <li><strong>CryptoWatch:</strong> Profesyonel grafik analizi</li>
+                <li><strong>Mobile:</strong> TradingView mobil app</li>
+            </ul>
+
+            <h2>🎯 Sonuç</h2>
+            <p>Teknik analiz, öğrenmesi zaman alan ama çok değerli bir beceridir. Sabırlı olun, sürekli pratik yapın ve her zaman risk yönetimini unutmayın. AI destekli platformumuz, teknik analiz sinyallerini otomatik olarak tarayarak size en iyi fırsatları sunar.</p>
+
+            <div class="tip-box">
+                <strong>📊 Hatırlatma:</strong><br>
+                "Piyasa her zaman haklıdır" - Ego'nuzu bırakın, piyasayı dinleyin!
+            </div>
+
+            <a href="/" class="cta">AI Teknik Analiz Sinyalleri</a>
+        </div>
+    </div>
+</body>
+</html>

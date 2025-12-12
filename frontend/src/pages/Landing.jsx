@@ -115,7 +115,8 @@ const Landing = ({ onGetStarted, setLang, lang }) => {
         ? 'Yapay zeka analizleri ışığında Bitcoin\'in 2025 yılında hangi seviyelere ulaşabileceğini inceliyoruz.'
         : 'Analyzing potential Bitcoin price levels in 2025 using AI-powered analysis.',
       date: '12 Ara 2025',
-      image: '🚀'
+      image: '🚀',
+      url: '/blog-bitcoin-2025.html'
     },
     {
       id: 2,
@@ -124,7 +125,8 @@ const Landing = ({ onGetStarted, setLang, lang }) => {
         ? 'Piyasa verileri ve göstergeler ışığında altcoin sezonunun zamanlamasını değerlendiriyoruz.'
         : 'Evaluating altcoin season timing based on market data and indicators.',
       date: '10 Ara 2025',
-      image: '📊'
+      image: '📊',
+      url: '/blog-altcoin-season.html'
     },
     {
       id: 3,
@@ -133,7 +135,38 @@ const Landing = ({ onGetStarted, setLang, lang }) => {
         ? 'Portföy değerinizi korumak için uygulamanız gereken risk yönetimi stratejileri.'
         : 'Risk management strategies you need to apply to protect your portfolio value.',
       date: '8 Ara 2025',
-      image: '🛡️'
+      image: '🛡️',
+      url: '/blog-risk-management.html'
+    },
+    {
+      id: 4,
+      title: lang === 'tr' ? 'Ethereum Staking Rehberi' : 'Ethereum Staking Guide',
+      excerpt: lang === 'tr'
+        ? 'ETH staking ile pasif gelir kazanmanın yolları, riskleri ve en iyi stratejiler.'
+        : 'Ways to earn passive income with ETH staking, risks and best strategies.',
+      date: '7 Ara 2025',
+      image: '💎',
+      url: '/blog-ethereum-merge.html'
+    },
+    {
+      id: 5,
+      title: lang === 'tr' ? 'DeFi Başlangıç Rehberi' : 'DeFi Beginners Guide',
+      excerpt: lang === 'tr'
+        ? 'Lending, yield farming ve likidite sağlama ile DeFi dünyasına giriş yapın.'
+        : 'Enter the DeFi world with lending, yield farming and liquidity provision.',
+      date: '5 Ara 2025',
+      image: '🏦',
+      url: '/blog-defi-guide.html'
+    },
+    {
+      id: 6,
+      title: lang === 'tr' ? 'Teknik Analiz 101' : 'Technical Analysis 101',
+      excerpt: lang === 'tr'
+        ? 'Grafik okuma, göstergeler ve trading stratejileri için temel rehber.'
+        : 'Essential guide for chart reading, indicators and trading strategies.',
+      date: '3 Ara 2025',
+      image: '📈',
+      url: '/blog-technical-analysis.html'
     }
   ]
 
@@ -323,9 +356,12 @@ const Landing = ({ onGetStarted, setLang, lang }) => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {blogPosts.map((post) => (
-              <div
+              <a
                 key={post.id}
-                className="bg-gray-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-gray-700/50 hover:border-yellow-500/50 transition-all hover:-translate-y-2 hover:shadow-lg hover:shadow-yellow-500/20 cursor-pointer"
+                href={post.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-gray-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-gray-700/50 hover:border-yellow-500/50 transition-all hover:-translate-y-2 hover:shadow-lg hover:shadow-yellow-500/20 cursor-pointer block"
               >
                 <div className="h-48 bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 flex items-center justify-center text-6xl">
                   {post.image}
@@ -334,11 +370,11 @@ const Landing = ({ onGetStarted, setLang, lang }) => {
                   <div className="text-sm text-gray-500 mb-2">{post.date}</div>
                   <h3 className="text-xl font-bold text-white mb-3">{post.title}</h3>
                   <p className="text-gray-400 text-sm leading-relaxed mb-4">{post.excerpt}</p>
-                  <button className="text-yellow-500 hover:text-yellow-400 font-medium text-sm transition-colors">
+                  <span className="text-yellow-500 hover:text-yellow-400 font-medium text-sm transition-colors">
                     {lang === 'tr' ? 'Devamını Oku →' : 'Read More →'}
-                  </button>
+                  </span>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
         </div>
