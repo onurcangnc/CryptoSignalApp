@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 """
-CryptoSignal - Signal Generator Worker v1.0
+CryptoSignal - Signal Generator Worker v1.1
 ===========================================
 Multi-Factor Confidence System ile sinyal uretimi
+
+v1.1 Guncellemeler (GPT-5.2 feedback):
+- FIX: String tarih karsilastirmasi -> datetime.fromisoformat()
+- FIX: Signal tracking aktif (top 20 coin)
+- ADD: Timeframe uyarisi (ayni veri kullanildigi belirtiliyor)
+- ADD: Semaphore ile rate limiting
 
 Ozellikler:
 - analysis_service.generate_signal() kullanimi
@@ -49,12 +55,17 @@ TIMEFRAME_LABELS = {
     "1y": "1 Yil"
 }
 
+# CoinGecko rate limiting
+COINGECKO_SEMAPHORE = asyncio.Semaphore(3)  # Max 3 concurrent requests
+COINGECKO_BACKOFF = 5  # Seconds between batches
+
 # Analysis Service instance
 analysis_service = AnalysisService()
 
-print("[Signal Worker v1.0] Starting...")
+print("[Signal Worker v1.1] Starting...")
 print(f"  Update interval: {UPDATE_INTERVAL}s")
 print(f"  Timeframes: {', '.join(TIMEFRAMES)}")
+print(f"  CoinGecko concurrency: 3")
 
 
 def get_news_sentiment_for_coin(symbol: str, news_db: Dict) -> Optional[Dict]:
@@ -67,13 +78,23 @@ def get_news_sentiment_for_coin(symbol: str, news_db: Dict) -> Optional[Dict]:
     if not news_db:
         return None
 
-    # Son 24 saatteki haberler
-    cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+    # Son 24 saatteki haberler (FIX: datetime karsilastirmasi)
+    cutoff_dt = datetime.utcnow() - timedelta(hours=24)
 
     relevant_news = []
     for news in news_db.values():
-        if news.get("crawled_at", "") < cutoff:
+        crawled_str = news.get("crawled_at", "")
+        if not crawled_str:
             continue
+        try:
+            # ISO format string -> datetime
+            crawled_dt = datetime.fromisoformat(crawled_str.replace("Z", "+00:00"))
+            if crawled_dt.tzinfo:
+                crawled_dt = crawled_dt.replace(tzinfo=None)  # Naive datetime
+            if crawled_dt < cutoff_dt:
+                continue
+        except (ValueError, TypeError):
+            continue  # Invalid date format, skip
 
         coins = news.get("coins", [])
         if symbol in coins or "GENERAL" in coins:
@@ -148,22 +169,24 @@ async def fetch_historical_prices(symbol: str, days: int = 365) -> List:
         return []
 
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(
-                f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart",
-                params={
-                    "vs_currency": "usd",
-                    "days": str(days),
-                    "interval": "daily"
-                }
-            )
+        # Semaphore ile rate limiting
+        async with COINGECKO_SEMAPHORE:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get(
+                    f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart",
+                    params={
+                        "vs_currency": "usd",
+                        "days": str(days),
+                        "interval": "daily"
+                    }
+                )
 
-            if resp.status_code == 200:
-                data = resp.json()
-                return data.get("prices", [])
-            elif resp.status_code == 429:
-                print(f"[CoinGecko] Rate limited for {symbol}")
-                await asyncio.sleep(60)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return data.get("prices", [])
+                elif resp.status_code == 429:
+                    print(f"[CoinGecko] Rate limited for {symbol}, backing off {COINGECKO_BACKOFF}s")
+                    await asyncio.sleep(COINGECKO_BACKOFF)
     except Exception as e:
         print(f"[Historical] {symbol} error: {e}")
 
@@ -348,8 +371,61 @@ async def generate_all_signals():
 
     print(f"  Total: {processed} | BUY: {buy_count} | HOLD: {hold_count} | SELL: {sell_count}")
 
-    # Signal tracking icin kayit (opsiyonel - top 20)
-    # Bu kisim signal checker worker'a birakilabilir
+    # Signal tracking icin kayit - Top 20 coin (kalibrasyon verisi)
+    await track_top_signals(all_signals["1d"]["signals"], sorted_coins[:20])
+
+
+async def track_top_signals(signals_1d: Dict, top_coins: List):
+    """
+    Top 20 coin icin sinyal tracking kaydi
+    Kalibrasyon verisi icin DB'ye kaydedilir
+    """
+    tracked = 0
+    for symbol, _ in top_coins:
+        signal_data = signals_1d.get(symbol)
+        if not signal_data:
+            continue
+
+        # Sadece BUY/SELL sinyalleri track et (HOLD hariç)
+        signal = signal_data.get("signal", "")
+        if signal not in ["STRONG_BUY", "BUY", "SELL", "STRONG_SELL"]:
+            continue
+
+        try:
+            # Timeframe'e gore check_date hesapla (1d = 1 gun sonra)
+            check_date = datetime.utcnow() + timedelta(days=1)
+
+            # Target ve stop-loss hesapla (basit ATR bazli)
+            price = signal_data.get("price", 0)
+            volatility = signal_data.get("technical", {}).get("volatility", {})
+            atr_pct = volatility.get("atr_percent", 3.0)  # Default %3
+
+            if signal in ["STRONG_BUY", "BUY"]:
+                target_price = price * (1 + atr_pct / 100 * 2)  # 2x ATR profit
+                stop_loss = price * (1 - atr_pct / 100)  # 1x ATR stop
+            else:  # SELL
+                target_price = price * (1 - atr_pct / 100 * 2)
+                stop_loss = price * (1 + atr_pct / 100)
+
+            # DB'ye kaydet
+            save_signal_track(
+                symbol=symbol,
+                signal=signal,
+                confidence=signal_data.get("confidence", 0),
+                entry_price=price,
+                target_price=target_price,
+                stop_loss=stop_loss,
+                timeframe="1d",
+                check_date=check_date
+            )
+            tracked += 1
+
+        except Exception as e:
+            print(f"  [Track] Error {symbol}: {e}")
+            continue
+
+    if tracked > 0:
+        print(f"  [Track] Saved {tracked} signals for calibration")
 
 
 async def main():

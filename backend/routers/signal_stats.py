@@ -99,3 +99,92 @@ async def get_coin_signal_history(
             f"%{stats['success_rate']:.1f} başarı oranına sahibiz."
         )
     }
+
+
+@router.get("/signal-accuracy-by-confidence")
+async def get_accuracy_by_confidence(user=Depends(get_current_user)):
+    """
+    Confidence seviyesine göre sinyal accuracy istatistikleri
+
+    Kalibrasyon verisi - confidence ile gerçek accuracy korelasyonu
+    """
+    # Redis'ten pre-computed stats al
+    cached = redis_client.get("signal_accuracy_stats")
+    if cached:
+        try:
+            stats = json.loads(cached)
+            return {
+                "status": "ok",
+                "data": stats,
+                "calibration_note": (
+                    "Bu veriler sinyal güven skorlarının gerçek sonuçlarla "
+                    "ne kadar örtüştüğünü gösterir. İdeal durumda yüksek güven "
+                    "sinyalleri daha yüksek accuracy'ye sahip olmalıdır."
+                )
+            }
+        except json.JSONDecodeError:
+            pass
+
+    # Cache yoksa direkt hesapla
+    from database import get_db
+
+    with get_db() as conn:
+        # Confidence aralıklarına göre (low: <40, medium: 40-70, high: >70)
+        confidence_stats = {}
+        for level, (min_conf, max_conf) in [
+            ("low", (0, 40)),
+            ("medium", (40, 70)),
+            ("high", (70, 101))
+        ]:
+            row = conn.execute("""
+                SELECT
+                    COUNT(*) as total,
+                    SUM(CASE WHEN is_successful = 1 THEN 1 ELSE 0 END) as successful,
+                    AVG(profit_loss_pct) as avg_pnl
+                FROM signal_tracking
+                WHERE result IS NOT NULL
+                AND confidence >= ? AND confidence < ?
+            """, (min_conf, max_conf)).fetchone()
+
+            total = row["total"] or 0
+            successful = row["successful"] or 0
+            avg_pnl = row["avg_pnl"] or 0
+
+            confidence_stats[level] = {
+                "total": total,
+                "successful": successful,
+                "accuracy": round((successful / total * 100), 1) if total >= 10 else None,
+                "avg_profit_loss": round(avg_pnl, 2),
+                "confidence_range": f"{min_conf}-{max_conf}%"
+            }
+
+        # Genel istatistik
+        general = conn.execute("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN is_successful = 1 THEN 1 ELSE 0 END) as successful,
+                AVG(profit_loss_pct) as avg_pnl
+            FROM signal_tracking
+            WHERE result IS NOT NULL
+        """).fetchone()
+
+    total = general["total"] or 0
+    successful = general["successful"] or 0
+
+    return {
+        "status": "ok",
+        "data": {
+            "general": {
+                "total_signals": total,
+                "successful": successful,
+                "accuracy": round((successful / total * 100), 1) if total >= 10 else None,
+                "avg_profit_loss": round(general["avg_pnl"] or 0, 2)
+            },
+            "by_confidence": confidence_stats,
+            "updated_at": datetime.utcnow().isoformat()
+        },
+        "calibration_note": (
+            "Bu veriler sinyal güven skorlarının gerçek sonuçlarla "
+            "ne kadar örtüştüğünü gösterir."
+        )
+    }

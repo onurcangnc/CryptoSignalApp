@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """
-CryptoSignal - Signal Checker Worker
-=====================================
+CryptoSignal - Signal Checker Worker v1.1
+==========================================
 Sinyal doğruluk oranını otomatik kontrol eder
 Her saat çalışır ve vadesi gelen sinyalleri değerlendirir
+
+v1.1 Güncellemeler:
+- Confidence bazlı accuracy istatistikleri
+- Daha detaylı loglama
 """
 
 import time
@@ -15,13 +19,15 @@ import sys
 import os
 
 # Add backend to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database import (
     check_signal_results,
     update_signal_result,
     get_signal_success_rate
 )
+
+print("[Signal Checker v1.1] Starting...")
 
 # Redis
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")

@@ -1,0 +1,28 @@
+[Unit]
+Description=CryptoSignal Signal Generator Worker
+Documentation=https://github.com/onurcangnc/CryptoSignalApp
+After=network.target redis.service cryptosignal-prices.service
+Wants=redis.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/CryptoSignalApp/backend
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/root/CryptoSignalApp/backend/.env
+ExecStart=/usr/bin/python3 /root/CryptoSignalApp/backend/workers/worker_signals.py
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cryptosignal-signals
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target
