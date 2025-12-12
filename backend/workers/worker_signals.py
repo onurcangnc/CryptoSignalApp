@@ -124,25 +124,42 @@ def _extract_alignment(details: dict) -> int:
     return 0
 
 
-def _has_indicators(analysis: dict) -> bool:
+def _has_indicators(technical: dict) -> bool:
     """
     İndikatör verisi var mı kontrol et.
     RSI, MACD, MA gibi temel indikatörler yoksa False döner.
+
+    Args:
+        technical: Technical indicators dict from calculate_indicators()
     """
-    ind = analysis.get("indicators") or {}
-    vals = [
-        analysis.get("rsi"), analysis.get("macd"), analysis.get("ma"),
-        ind.get("rsi"), ind.get("macd"), ind.get("ma"),
-    ]
-    # En az bir geçerli indikatör değeri olmalı
-    ok = any(v not in (None, "N/A", "na", "NA", "") for v in vals)
-    return ok
+    if not technical:
+        return False
+
+    # Check RSI (should be a number 0-100)
+    rsi = technical.get("rsi")
+    has_rsi = rsi is not None and rsi not in ("N/A", "na", "NA", "")
+
+    # Check MACD (should be a dict with histogram)
+    macd = technical.get("macd")
+    has_macd = macd is not None and isinstance(macd, dict) and macd.get("histogram") is not None
+
+    # Check MA (should be a dict with sma/ema values)
+    ma = technical.get("ma")
+    has_ma = ma is not None and isinstance(ma, dict) and (ma.get("sma_20") is not None or ma.get("ema_12") is not None)
+
+    # En az bir geçerli indikatör olmalı
+    return has_rsi or has_macd or has_ma
 
 
-def should_emit_signal(analysis: dict, risk_level: str) -> tuple:
+def should_emit_signal(analysis: dict, risk_level: str, technical: dict = None) -> tuple:
     """
     AL/SAT üretmeden önce kalite kontrolü.
     Düşük kaliteyi BEKLE'ye çevirir.
+
+    Args:
+        analysis: Signal result from generate_signal()
+        risk_level: Risk level string
+        technical: Technical indicators dict from calculate_indicators()
 
     Returns:
         (final_signal, confidence, gate_reason)
@@ -159,8 +176,8 @@ def should_emit_signal(analysis: dict, risk_level: str) -> tuple:
     if signal not in BUY_SIGNALS and signal not in SELL_SIGNALS:
         return "HOLD", confidence, f"unknown_signal_{signal}"
 
-    # İndikatör verisi yoksa trade verme (GPT-5.2 önerisi)
-    if not _has_indicators(analysis):
+    # İndikatör verisi yoksa trade verme
+    if not _has_indicators(technical):
         return "HOLD", confidence, "missing_indicators"
 
     # Risk seviyesine göre threshold ayarla
@@ -179,7 +196,7 @@ def should_emit_signal(analysis: dict, risk_level: str) -> tuple:
     return signal, confidence, "passed"
 
 
-print("[Signal Worker v1.4] Starting with Multi-Source Historical Data...")
+print("[Signal Worker v1.5] Starting with Multi-Source Historical Data...")
 print(f"  Update interval: {UPDATE_INTERVAL}s")
 print(f"  Timeframes: {', '.join(TIMEFRAMES)}")
 print(f"  Historical data sources: Binance -> CMC -> CoinGecko (fallback chain)")
@@ -433,7 +450,7 @@ def generate_signals_for_coin(
     raw_signal_tr = signal_result["signal_tr"]
     risk_level = risk_result["level"]
 
-    final_signal, final_conf, gate_reason = should_emit_signal(signal_result, risk_level)
+    final_signal, final_conf, gate_reason = should_emit_signal(signal_result, risk_level, technical)
 
     # Signal TR'yi de güncelle
     signal_tr_map = {
