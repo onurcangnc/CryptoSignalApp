@@ -1046,6 +1046,59 @@ def get_signal_success_rate(days: int = 30, symbol: str = None) -> Dict:
 
             trade_success_rate = (trade_successful / trade_total * 100) if trade_total > 0 else 0
 
+            # YENİ: Gelişmiş Trading Metrikleri
+            # Avg Win (sadece kazançlı trade'ler)
+            avg_win_row = conn.execute(
+                """SELECT AVG(profit_loss_pct) as avg_win, COUNT(*) as win_count
+                   FROM signal_tracking
+                   WHERE created_at >= ? AND profit_loss_pct > 0
+                   AND signal IN ('AL', 'BUY', 'STRONG_BUY', 'GÜÇLÜ AL', 'SAT', 'SELL', 'STRONG_SELL', 'GÜÇLÜ SAT')""",
+                (since,)
+            ).fetchone()
+            avg_win = avg_win_row["avg_win"] if avg_win_row["avg_win"] else 0
+            win_count = avg_win_row["win_count"] or 0
+
+            # Avg Loss (sadece kayıplı trade'ler)
+            avg_loss_row = conn.execute(
+                """SELECT AVG(profit_loss_pct) as avg_loss, COUNT(*) as loss_count
+                   FROM signal_tracking
+                   WHERE created_at >= ? AND profit_loss_pct < 0
+                   AND signal IN ('AL', 'BUY', 'STRONG_BUY', 'GÜÇLÜ AL', 'SAT', 'SELL', 'STRONG_SELL', 'GÜÇLÜ SAT')""",
+                (since,)
+            ).fetchone()
+            avg_loss_trade = avg_loss_row["avg_loss"] if avg_loss_row["avg_loss"] else 0
+            loss_count = avg_loss_row["loss_count"] or 0
+
+            # Profit Factor = Toplam Kazanç / Toplam Kayıp (mutlak değer)
+            total_wins_row = conn.execute(
+                """SELECT SUM(profit_loss_pct) as total_wins
+                   FROM signal_tracking
+                   WHERE created_at >= ? AND profit_loss_pct > 0
+                   AND signal IN ('AL', 'BUY', 'STRONG_BUY', 'GÜÇLÜ AL', 'SAT', 'SELL', 'STRONG_SELL', 'GÜÇLÜ SAT')""",
+                (since,)
+            ).fetchone()
+            total_wins = total_wins_row["total_wins"] if total_wins_row["total_wins"] else 0
+
+            total_losses_row = conn.execute(
+                """SELECT SUM(ABS(profit_loss_pct)) as total_losses
+                   FROM signal_tracking
+                   WHERE created_at >= ? AND profit_loss_pct < 0
+                   AND signal IN ('AL', 'BUY', 'STRONG_BUY', 'GÜÇLÜ AL', 'SAT', 'SELL', 'STRONG_SELL', 'GÜÇLÜ SAT')""",
+                (since,)
+            ).fetchone()
+            total_losses = total_losses_row["total_losses"] if total_losses_row["total_losses"] else 0
+
+            profit_factor = (total_wins / total_losses) if total_losses > 0 else (999 if total_wins > 0 else 0)
+
+            # Expectancy = (Win Rate × Avg Win) - (Loss Rate × Avg Loss)
+            # Bu her trade başına beklenen ortalama getiri
+            win_rate = (win_count / trade_total) if trade_total > 0 else 0
+            loss_rate = (loss_count / trade_total) if trade_total > 0 else 0
+            expectancy = (win_rate * avg_win) - (loss_rate * abs(avg_loss_trade))
+
+            # Risk/Reward Ratio = Avg Win / Avg Loss (mutlak değer)
+            risk_reward = (avg_win / abs(avg_loss_trade)) if avg_loss_trade != 0 else 0
+
             return {
                 "total_signals": total,
                 "successful_signals": successful,
@@ -1064,6 +1117,15 @@ def get_signal_success_rate(days: int = 30, symbol: str = None) -> Dict:
                 "compound_return": compound_return,
                 "top_signals": top_signals,
                 "worst_signal": worst_signal,
+
+                # YENİ: Profesyonel Trading Metrikleri
+                "avg_win": round(avg_win, 2),           # Ortalama kazanç %
+                "avg_loss": round(avg_loss_trade, 2),   # Ortalama kayıp %
+                "win_count": win_count,                  # Kazançlı trade sayısı
+                "loss_count": loss_count,                # Kayıplı trade sayısı
+                "profit_factor": round(profit_factor, 2),  # Toplam Kazanç / Toplam Kayıp
+                "expectancy": round(expectancy, 2),     # Trade başına beklenen getiri %
+                "risk_reward": round(risk_reward, 2),   # Risk/Ödül oranı
 
                 # Mevcut breakdown
                 "by_signal": [

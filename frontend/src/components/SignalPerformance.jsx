@@ -157,6 +157,111 @@ export const TopWinsCard = ({ stats }) => {
 }
 
 /**
+ * Profesyonel Trading Metrikleri Kartı - Cyan Tema
+ * Avg Win/Loss, Profit Factor, Expectancy, Risk/Reward gösterir
+ */
+export const TradingMetricsCard = ({ stats }) => {
+  if (!stats || stats.insufficient_data) {
+    return null
+  }
+
+  const avgWin = stats.avg_win || 0
+  const avgLoss = stats.avg_loss || 0
+  const profitFactor = stats.profit_factor || 0
+  const expectancy = stats.expectancy || 0
+  const riskReward = stats.risk_reward || 0
+  const winCount = stats.win_count || 0
+  const lossCount = stats.loss_count || 0
+
+  // Hiç trade yoksa gösterme
+  if (winCount === 0 && lossCount === 0) {
+    return null
+  }
+
+  // Profit Factor değerlendirmesi
+  const getProfitFactorColor = (pf) => {
+    if (pf >= 2) return 'text-green-400'
+    if (pf >= 1.5) return 'text-yellow-400'
+    if (pf >= 1) return 'text-orange-400'
+    return 'text-red-400'
+  }
+
+  // Expectancy değerlendirmesi
+  const getExpectancyColor = (exp) => {
+    if (exp > 0) return 'text-green-400'
+    if (exp === 0) return 'text-gray-400'
+    return 'text-red-400'
+  }
+
+  return (
+    <div className="group bg-gradient-to-br from-cyan-900/20 to-blue-900/20 rounded-xl p-5 border border-cyan-700/50 hover:border-cyan-500/70 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/30 hover:-translate-y-1">
+      <h3 className="text-gray-400 text-sm mb-3 flex items-center gap-2">
+        <span>📈</span>
+        <span>Profesyonel Trading Metrikleri</span>
+      </h3>
+
+      <div className="space-y-3">
+        {/* Avg Win / Avg Loss */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="p-2 bg-green-900/20 border border-green-700/30 rounded-lg text-center">
+            <div className="text-xs text-gray-400 mb-1">Ort. Kazanç</div>
+            <div className="text-lg font-bold text-green-400">
+              +{avgWin.toFixed(1)}%
+            </div>
+            <div className="text-xs text-gray-500">{winCount} trade</div>
+          </div>
+          <div className="p-2 bg-red-900/20 border border-red-700/30 rounded-lg text-center">
+            <div className="text-xs text-gray-400 mb-1">Ort. Kayıp</div>
+            <div className="text-lg font-bold text-red-400">
+              {avgLoss.toFixed(1)}%
+            </div>
+            <div className="text-xs text-gray-500">{lossCount} trade</div>
+          </div>
+        </div>
+
+        {/* Profit Factor */}
+        <div className="flex justify-between items-center p-2 bg-gray-800/50 rounded-lg">
+          <div>
+            <div className="text-xs text-gray-400">Profit Factor</div>
+            <div className="text-xs text-gray-500">Kazanç/Kayıp Oranı</div>
+          </div>
+          <div className={`text-xl font-bold ${getProfitFactorColor(profitFactor)}`}>
+            {profitFactor >= 999 ? '∞' : profitFactor.toFixed(2)}
+          </div>
+        </div>
+
+        {/* Expectancy */}
+        <div className="flex justify-between items-center p-2 bg-gray-800/50 rounded-lg">
+          <div>
+            <div className="text-xs text-gray-400">Beklenen Getiri</div>
+            <div className="text-xs text-gray-500">Trade başına</div>
+          </div>
+          <div className={`text-xl font-bold ${getExpectancyColor(expectancy)}`}>
+            {expectancy > 0 ? '+' : ''}{expectancy.toFixed(2)}%
+          </div>
+        </div>
+
+        {/* Risk/Reward */}
+        <div className="flex justify-between items-center p-2 bg-gray-800/50 rounded-lg">
+          <div>
+            <div className="text-xs text-gray-400">Risk/Reward</div>
+            <div className="text-xs text-gray-500">Kazanç/Risk Oranı</div>
+          </div>
+          <div className={`text-xl font-bold ${riskReward >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
+            1:{riskReward.toFixed(2)}
+          </div>
+        </div>
+
+        {/* Açıklama */}
+        <div className="text-xs text-cyan-200 bg-cyan-900/20 p-2 rounded border border-cyan-700/30">
+          💡 Profit Factor {'>'} 1.5 ve pozitif Expectancy iyi performans göstergesidir.
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
  * Şeffaflık & Risk Kartı - Gri Tema
  * Kayıpları ve riskleri gösterir
  */
@@ -270,11 +375,12 @@ export const SignalPerformanceGrid = ({ stats }) => {
     return <InsufficientDataState stats={stats} />
   }
 
-  // Yeterli veri var - 4 kartı göster
+  // Yeterli veri var - 5 kartı göster
   return (
     <>
       <SuccessRateCard stats={stats} />
       <CompoundReturnCard stats={stats} />
+      <TradingMetricsCard stats={stats} />
       <TopWinsCard stats={stats} />
       <TransparencyCard stats={stats} />
     </>
