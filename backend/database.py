@@ -20,13 +20,26 @@ from config import DB_PATH, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_DB
 # REDIS CONNECTION
 # =============================================================================
 
-redis_client = redis.Redis(
-    host=REDIS_HOST,
-    port=REDIS_PORT,
-    db=REDIS_DB,
-    decode_responses=True,
-    password=REDIS_PASSWORD
-)
+class RedisClientProxy:
+    """Lazy Redis client proxy - ilk erişimde bağlantı kur"""
+    def __init__(self):
+        self._client = None
+
+    def _get_client(self):
+        if self._client is None:
+            self._client = redis.Redis(
+                host=REDIS_HOST,
+                port=REDIS_PORT,
+                db=REDIS_DB,
+                decode_responses=True,
+                password=REDIS_PASSWORD
+            )
+        return self._client
+
+    def __getattr__(self, name):
+        return getattr(self._get_client(), name)
+
+redis_client = RedisClientProxy()
 
 # =============================================================================
 # SQLITE CONNECTION
