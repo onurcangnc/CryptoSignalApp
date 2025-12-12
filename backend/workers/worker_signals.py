@@ -179,10 +179,10 @@ def should_emit_signal(analysis: dict, risk_level: str) -> tuple:
     return signal, confidence, "passed"
 
 
-print("[Signal Worker v1.3] Starting with Binance Historical Data...")
+print("[Signal Worker v1.4] Starting with Multi-Source Historical Data...")
 print(f"  Update interval: {UPDATE_INTERVAL}s")
 print(f"  Timeframes: {', '.join(TIMEFRAMES)}")
-print(f"  Historical data: Binance Klines API (top 100 coins)")
+print(f"  Historical data sources: Binance -> CMC -> CoinGecko (fallback chain)")
 print(f"  Quality Gate: min_conf={MIN_CONFIDENCE_FOR_TRADE}, min_align={MIN_FACTOR_ALIGNMENT}")
 
 
@@ -241,54 +241,147 @@ def get_news_sentiment_for_coin(symbol: str, news_db: Dict) -> Optional[Dict]:
     }
 
 
-async def fetch_historical_prices(symbol: str, days: int = 90) -> List:
-    """
-    Binance Klines API'den historical price data çek.
-    CoinGecko rate limit sorununu çözmek için Binance kullanılıyor.
+# CoinMarketCap API Key
+CMC_API_KEY = os.getenv("CMC_API_KEY", "9e01b29529e44a97a01ac7d65f035c6c")
 
-    Returns:
-        List of [timestamp, price] pairs (CoinGecko format uyumlu)
-    """
-    # Binance'de USDT paritesi olan coinler
-    BINANCE_SYMBOLS = {
-        "BTC", "ETH", "BNB", "XRP", "SOL", "ADA", "DOGE", "TRX", "AVAX",
-        "DOT", "LINK", "MATIC", "LTC", "BCH", "ATOM", "UNI", "XLM", "ETC",
-        "FIL", "APT", "NEAR", "INJ", "OP", "ARB", "SUI", "SEI", "FET",
-        "RNDR", "AAVE", "SHIB", "PEPE", "TON", "HBAR", "ICP", "STX", "IMX",
-        "TAO", "JUP", "ENA", "WLD", "TIA", "PYTH", "GRT", "ALGO", "VET",
-        "FTM", "SAND", "MANA", "AXS", "GALA", "LDO", "MKR", "SNX", "CRV",
-        "COMP", "ENJ", "CHZ", "FLOW", "EOS", "XTZ", "NEO", "ZEC", "DASH",
-        "IOTA", "THETA", "EGLD", "QNT", "RUNE", "KAVA", "CFX", "APE", "GMX",
-        "W", "STRK", "MANTA", "DYDX", "PENDLE", "BLUR", "FLOKI", "BONK",
-        "WIF", "MEME", "ORDI", "JTO", "ZK", "POL", "ONDO", "MINA"
-    }
+# Binance'de USDT paritesi olan coinler
+BINANCE_SYMBOLS = {
+    "BTC", "ETH", "BNB", "XRP", "SOL", "ADA", "DOGE", "TRX", "AVAX",
+    "DOT", "LINK", "MATIC", "LTC", "BCH", "ATOM", "UNI", "XLM", "ETC",
+    "FIL", "APT", "NEAR", "INJ", "OP", "ARB", "SUI", "SEI", "FET",
+    "RNDR", "AAVE", "SHIB", "PEPE", "TON", "HBAR", "ICP", "STX", "IMX",
+    "TAO", "JUP", "ENA", "WLD", "TIA", "PYTH", "GRT", "ALGO", "VET",
+    "FTM", "SAND", "MANA", "AXS", "GALA", "LDO", "MKR", "SNX", "CRV",
+    "COMP", "ENJ", "CHZ", "FLOW", "EOS", "XTZ", "NEO", "ZEC", "DASH",
+    "IOTA", "THETA", "EGLD", "QNT", "RUNE", "KAVA", "CFX", "APE", "GMX",
+    "W", "STRK", "MANTA", "DYDX", "PENDLE", "BLUR", "FLOKI", "BONK",
+    "WIF", "MEME", "ORDI", "JTO", "ZK", "POL", "ONDO", "MINA"
+}
 
+# CoinGecko ID mapping (fallback için)
+SYMBOL_TO_COINGECKO = {
+    "BTC": "bitcoin", "ETH": "ethereum", "BNB": "binancecoin",
+    "XRP": "ripple", "SOL": "solana", "ADA": "cardano",
+    "DOGE": "dogecoin", "TRX": "tron", "AVAX": "avalanche-2",
+    "DOT": "polkadot", "LINK": "chainlink", "MATIC": "matic-network",
+    "LTC": "litecoin", "BCH": "bitcoin-cash", "ATOM": "cosmos",
+    "UNI": "uniswap", "XLM": "stellar", "ETC": "ethereum-classic",
+    "FIL": "filecoin", "APT": "aptos", "NEAR": "near",
+    "INJ": "injective-protocol", "OP": "optimism", "ARB": "arbitrum",
+    "TON": "the-open-network", "HBAR": "hedera-hashgraph",
+}
+
+
+async def fetch_from_binance(symbol: str, days: int) -> List:
+    """Binance Klines API - Öncelikli kaynak"""
     if symbol not in BINANCE_SYMBOLS:
         return []
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            # Binance Klines API - günlük veriler
             resp = await client.get(
                 "https://api.binance.com/api/v3/klines",
                 params={
                     "symbol": f"{symbol}USDT",
                     "interval": "1d",
-                    "limit": min(days, 365)  # Max 365 gün
+                    "limit": min(days, 365)
                 }
             )
-
             if resp.status_code == 200:
                 klines = resp.json()
-                # CoinGecko format: [[timestamp, price], ...]
-                prices = [[int(k[0]), float(k[4])] for k in klines]  # k[4] = close price
+                prices = [[int(k[0]), float(k[4])] for k in klines]
                 return prices
-            else:
-                # Bazı coinler USDT paritesi olmayabilir
-                return []
-
     except Exception as e:
         print(f"[Binance] {symbol} error: {e}")
+    return []
+
+
+async def fetch_from_coinmarketcap(symbol: str, days: int) -> List:
+    """CoinMarketCap API - İkinci kaynak"""
+    if not CMC_API_KEY:
+        return []
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            # CMC historical quotes endpoint
+            resp = await client.get(
+                "https://pro-api.coinmarketcap.com/v2/cryptocurrency/quotes/historical",
+                headers={"X-CMC_PRO_API_KEY": CMC_API_KEY},
+                params={
+                    "symbol": symbol,
+                    "count": min(days, 365),
+                    "interval": "daily"
+                }
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                quotes = data.get("data", {}).get(symbol, [])
+                if quotes and isinstance(quotes, list) and len(quotes) > 0:
+                    coin_data = quotes[0].get("quotes", [])
+                    prices = []
+                    for q in coin_data:
+                        ts = q.get("timestamp", "")
+                        price = q.get("quote", {}).get("USD", {}).get("close", 0)
+                        if ts and price:
+                            # ISO timestamp to milliseconds
+                            from datetime import datetime
+                            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                            prices.append([int(dt.timestamp() * 1000), float(price)])
+                    return prices
+    except Exception as e:
+        print(f"[CMC] {symbol} error: {e}")
+    return []
+
+
+async def fetch_from_coingecko(symbol: str, days: int) -> List:
+    """CoinGecko API - Son fallback (rate limited)"""
+    coin_id = SYMBOL_TO_COINGECKO.get(symbol)
+    if not coin_id:
+        return []
+
+    try:
+        async with COINGECKO_SEMAPHORE:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get(
+                    f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart",
+                    params={
+                        "vs_currency": "usd",
+                        "days": str(days),
+                        "interval": "daily"
+                    }
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return data.get("prices", [])
+                elif resp.status_code == 429:
+                    await asyncio.sleep(COINGECKO_BACKOFF)
+    except Exception as e:
+        print(f"[CoinGecko] {symbol} error: {e}")
+    return []
+
+
+async def fetch_historical_prices(symbol: str, days: int = 90) -> List:
+    """
+    Multi-source historical price data fetcher.
+    Fallback chain: Binance -> CoinMarketCap -> CoinGecko
+
+    Returns:
+        List of [timestamp, price] pairs
+    """
+    # 1. Binance (en hızlı, rate limit yok)
+    prices = await fetch_from_binance(symbol, days)
+    if prices and len(prices) >= 14:  # RSI için minimum 14 gün
+        return prices
+
+    # 2. CoinMarketCap (API key ile)
+    prices = await fetch_from_coinmarketcap(symbol, days)
+    if prices and len(prices) >= 14:
+        return prices
+
+    # 3. CoinGecko (son fallback, rate limited)
+    prices = await fetch_from_coingecko(symbol, days)
+    if prices and len(prices) >= 14:
+        return prices
 
     return []
 
