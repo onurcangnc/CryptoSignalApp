@@ -10,7 +10,7 @@ import json
 import hashlib
 import secrets
 import redis
-from datetime import datetime
+from datetime import datetime, timedelta
 from contextlib import contextmanager
 from typing import Optional, Dict, List, Any
 
@@ -57,9 +57,16 @@ def init_db():
                 password_salt TEXT,
                 tier TEXT DEFAULT "free",
                 created_at TEXT,
-                last_login TEXT
+                last_login TEXT,
+                ad_credits INTEGER DEFAULT 0
             )
         ''')
+
+        # Add ad_credits column if not exists (for existing databases)
+        try:
+            c.execute("ALTER TABLE users ADD COLUMN ad_credits INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
         
         # Portfolios
         c.execute('''
@@ -454,6 +461,58 @@ def create_invite(token: str, tier: str, note: str) -> None:
             (token, tier, note, datetime.utcnow().isoformat())
         )
         conn.commit()
+
+
+# =============================================================================
+# AD CREDITS CRUD (Reklam izleme ile kazanılan AI kredileri)
+# =============================================================================
+
+def get_ad_credits(user_id: str) -> int:
+    """Kullanıcının reklam kredilerini getir"""
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT ad_credits FROM users WHERE id=?",
+            (user_id,)
+        ).fetchone()
+        return row["ad_credits"] if row and row["ad_credits"] else 0
+
+
+def add_ad_credit(user_id: str, amount: int = 1) -> int:
+    """Kullanıcıya reklam kredisi ekle"""
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE users SET ad_credits = COALESCE(ad_credits, 0) + ? WHERE id=?",
+            (amount, user_id)
+        )
+        conn.commit()
+    return get_ad_credits(user_id)
+
+
+def use_ad_credit(user_id: str) -> bool:
+    """Reklam kredisi kullan (varsa)"""
+    credits = get_ad_credits(user_id)
+    if credits <= 0:
+        return False
+
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE users SET ad_credits = ad_credits - 1 WHERE id=? AND ad_credits > 0",
+            (user_id,)
+        )
+        conn.commit()
+    return True
+
+
+def get_last_ad_reward_time(user_id: str) -> Optional[str]:
+    """Son reklam ödülü zamanını getir (spam önleme)"""
+    key = f"last_ad_reward:{user_id}"
+    return redis_client.get(key)
+
+
+def set_last_ad_reward_time(user_id: str) -> None:
+    """Son reklam ödülü zamanını kaydet"""
+    key = f"last_ad_reward:{user_id}"
+    redis_client.setex(key, 60, datetime.utcnow().isoformat())  # 60 saniye cooldown
 
 
 # =============================================================================

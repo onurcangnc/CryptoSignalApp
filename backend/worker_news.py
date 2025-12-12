@@ -17,18 +17,20 @@ import redis
 import httpx
 import re
 import hashlib
+import os
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from typing import Dict, Set, List
 import time
 
 # Redis connection
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 r = redis.Redis(
     host='localhost',
     port=6379,
     db=0,
     decode_responses=True,
-    password='3f9af2788cb89aa74c06bd48dd290658'
+    password=REDIS_PASSWORD
 )
 
 # =============================================================================

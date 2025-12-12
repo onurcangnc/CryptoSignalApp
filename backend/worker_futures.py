@@ -14,12 +14,13 @@ import asyncio
 import json
 import redis
 import httpx
+import os
 from datetime import datetime
 from typing import Dict, List
 
 # Redis
-REDIS_PASS = "3f9af2788cb89aa74c06bd48dd290658"
-r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True, password=REDIS_PASS)
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True, password=REDIS_PASSWORD)
 
 # Güncelleme aralığı
 UPDATE_INTERVAL = 60  # 1 dakika

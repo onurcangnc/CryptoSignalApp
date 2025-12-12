@@ -9,7 +9,7 @@ from fastapi import Request, HTTPException, Depends
 from typing import Optional, Dict
 
 from auth import verify_token
-from database import get_user_by_id, get_llm_usage, today_str
+from database import get_user_by_id, get_llm_usage, get_ad_credits, today_str
 from config import LLM_LIMITS
 
 
@@ -71,14 +71,24 @@ async def get_pro_user(user: Dict = Depends(get_current_user)) -> Dict:
 def check_llm_quota(user: Dict) -> tuple:
     """
     LLM kullanım kotasını kontrol et
-    Returns: (can_use, used_today, daily_limit, remaining)
+    Free kullanıcılar için ad_credits de hesaba katılır
+    Returns: (can_use, used_today, daily_limit, remaining, ad_credits)
     """
     tier = user.get("tier", "free")
-    limit = LLM_LIMITS.get(tier, 3)
+    limit = LLM_LIMITS.get(tier, 0)
     used = get_llm_usage(user["id"], today_str())
-    remaining = max(0, limit - used)
-    
-    return used < limit, used, limit, remaining
+    ad_credits = get_ad_credits(user["id"]) if tier == "free" else 0
+
+    # Free kullanıcılar: ad_credits varsa kullanabilir
+    # Pro/Admin: normal limit sistemi
+    if tier == "free":
+        can_use = ad_credits > 0
+        remaining = ad_credits
+    else:
+        can_use = used < limit
+        remaining = max(0, limit - used)
+
+    return can_use, used, limit, remaining, ad_credits
 
 
 async def require_llm_quota(user: Dict = Depends(get_current_user)) -> Dict:
@@ -86,12 +96,19 @@ async def require_llm_quota(user: Dict = Depends(get_current_user)) -> Dict:
     LLM kotası olan kullanıcılar için
     Kullanım: user = Depends(require_llm_quota)
     """
-    can_use, used, limit, remaining = check_llm_quota(user)
-    
+    can_use, used, limit, remaining, ad_credits = check_llm_quota(user)
+
     if not can_use:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Daily AI limit reached ({used}/{limit}). Resets at midnight UTC."
-        )
-    
+        tier = user.get("tier", "free")
+        if tier == "free":
+            raise HTTPException(
+                status_code=429,
+                detail="No AI credits available. Watch an ad to earn credits."
+            )
+        else:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Daily AI limit reached ({used}/{limit}). Resets at midnight UTC."
+            )
+
     return user

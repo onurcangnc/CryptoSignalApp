@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 
 from database import (
     redis_client, get_portfolio, get_db,
-    increment_llm_usage, today_str
+    increment_llm_usage, today_str, use_ad_credit, get_ad_credits
 )
 from dependencies import get_current_user, check_llm_quota
 from services.llm_service import llm_service
@@ -49,21 +49,37 @@ async def get_portfolio_summary(user: dict = Depends(get_current_user)):
 async def analyze_portfolio(user: dict = Depends(get_current_user)):
     """
     Yeni AI analizi oluştur
-    - LLM kullanır (1 quota)
+    - LLM kullanır (1 quota veya 1 ad_credit)
     - Rate limited
     """
+    print(f"[AI Summary] analyze_portfolio called for user: {user.get('id', 'unknown')}")
+
+    tier = user.get("tier", "free")
+
     # Quota kontrolü
-    can_use, used, limit, remaining = check_llm_quota(user)
-    
+    can_use, used, limit, remaining, ad_credits = check_llm_quota(user)
+
     if not can_use:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Daily AI limit reached ({used}/{limit})",
-            headers={"X-Reset-Time": "00:00 UTC"}
-        )
-    
-    # LLM kullanımını kaydet
-    increment_llm_usage(user['id'], today_str())
+        if tier == "free":
+            raise HTTPException(
+                status_code=429,
+                detail="No AI credits available. Watch an ad to earn credits.",
+                headers={"X-Ad-Credits": "0", "X-Need-Ad": "true"}
+            )
+        else:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Daily AI limit reached ({used}/{limit})",
+                headers={"X-Reset-Time": "00:00 UTC"}
+            )
+
+    # Kullanımı kaydet
+    if tier == "free":
+        # Free kullanıcılar için ad_credit düş
+        use_ad_credit(user['id'])
+    else:
+        # Pro/Admin için normal LLM kullanımı
+        increment_llm_usage(user['id'], today_str())
     
     # Analiz oluştur
     result = await generate_full_analysis(user)
@@ -947,12 +963,31 @@ Respond in JSON:
         response = llm_service.client.chat.completions.create(
             model=llm_service.model,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=400,
+            max_tokens=600,  # Increased from 400 to prevent truncation
             temperature=0.3,
             response_format={"type": "json_object"}
         )
 
-        result = json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content
+
+        # Try to parse JSON, handle truncated responses
+        try:
+            result = json.loads(content)
+        except json.JSONDecodeError:
+            # If JSON is truncated, try to fix it
+            print(f"[Smart Alerts] JSON truncated, attempting repair")
+            # Find last complete object
+            last_bracket = content.rfind('}')
+            if last_bracket > 0:
+                # Try to close the array and object
+                fixed = content[:last_bracket+1] + ']}'
+                try:
+                    result = json.loads(fixed)
+                except:
+                    return []
+            else:
+                return []
+
         alerts = result.get('alerts', [])
 
         # Add timestamp

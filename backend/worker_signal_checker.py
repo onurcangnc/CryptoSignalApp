@@ -24,8 +24,8 @@ from database import (
 )
 
 # Redis
-REDIS_PASS = "3f9af2788cb89aa74c06bd48dd290658"
-r = redis.Redis(host='localhost', port=6379, password=REDIS_PASS, decode_responses=True)
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+r = redis.Redis(host='localhost', port=6379, password=REDIS_PASSWORD, decode_responses=True)
 
 
 def check_and_update_signals():

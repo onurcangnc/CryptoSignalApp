@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import api from '../api'
 import { formatPrice, formatChange } from '../utils/formatters'
+import { RewardedAdModal } from '../components/RewardedAdModal'
 
 const AISummary = ({ t, lang, user }) => {
   const [loading, setLoading] = useState(true)
@@ -11,8 +12,29 @@ const AISummary = ({ t, lang, user }) => {
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
 
+  // Ad Credits State (for free users)
+  const [adCredits, setAdCredits] = useState(0)
+  const [showAdModal, setShowAdModal] = useState(false)
+  const [needsCredits, setNeedsCredits] = useState(false)
+
+  // Fetch ad credits for free users
+  const fetchAdCredits = async () => {
+    if (user?.tier === 'free') {
+      try {
+        const resp = await api.get('/api/ads/credits')
+        if (resp.ok) {
+          const data = await resp.json()
+          setAdCredits(data.credits)
+        }
+      } catch (e) {
+        console.error('Error fetching ad credits:', e)
+      }
+    }
+  }
+
   useEffect(() => {
     fetchSummary()
+    fetchAdCredits()
   }, [])
 
   const fetchSummary = async () => {
@@ -41,8 +63,16 @@ const AISummary = ({ t, lang, user }) => {
   }
 
   const generateFreshAnalysis = async () => {
+    // Free users need credits
+    if (user?.tier === 'free' && adCredits <= 0) {
+      setNeedsCredits(true)
+      setShowAdModal(true)
+      return
+    }
+
     setGenerating(true)
     setError(null)
+    setNeedsCredits(false)
     try {
       const resp = await api.post('/api/ai-summary/analyze')
       if (resp.ok) {
@@ -53,13 +83,24 @@ const AISummary = ({ t, lang, user }) => {
           setError(result.message || result.error)
         } else {
           setData(result)
+          // Refresh credits after successful analysis
+          fetchAdCredits()
         }
       } else {
         const err = await resp.json()
         if (resp.status === 429) {
-          setError(lang === 'tr'
-            ? `⚠️ Günlük AI limiti doldu. ${err.reset_time} UTC'de sıfırlanacak.`
-            : `⚠️ Daily AI limit reached. Resets at ${err.reset_time} UTC.`)
+          // No credits - show ad modal for free users
+          if (user?.tier === 'free') {
+            setNeedsCredits(true)
+            setShowAdModal(true)
+            setError(lang === 'tr'
+              ? '⚠️ AI kredisi kalmadı. Reklam izleyerek kredi kazanın!'
+              : '⚠️ No AI credits left. Watch an ad to earn credits!')
+          } else {
+            setError(lang === 'tr'
+              ? `⚠️ Günlük AI limiti doldu. ${err.reset_time || '00:00'} UTC'de sıfırlanacak.`
+              : `⚠️ Daily AI limit reached. Resets at ${err.reset_time || '00:00'} UTC.`)
+          }
         } else {
           setError(err.detail || 'Analysis failed')
         }
@@ -69,6 +110,13 @@ const AISummary = ({ t, lang, user }) => {
     } finally {
       setGenerating(false)
     }
+  }
+
+  // Handle reward from ad modal
+  const handleAdReward = (newCredits) => {
+    setAdCredits(newCredits)
+    setNeedsCredits(false)
+    setError(null)
   }
 
   if (loading) {
@@ -86,6 +134,14 @@ const AISummary = ({ t, lang, user }) => {
 
   return (
     <div className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-6">
+      {/* Rewarded Ad Modal */}
+      <RewardedAdModal
+        isOpen={showAdModal}
+        onClose={() => setShowAdModal(false)}
+        onRewardClaimed={handleAdReward}
+        lang={lang}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -93,32 +149,69 @@ const AISummary = ({ t, lang, user }) => {
             🤖 {lang === 'tr' ? 'AI Portföy İstihbaratı' : 'AI Portfolio Intelligence'}
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            {lang === 'tr' 
-              ? 'Portföyünüze özel AI destekli analizler ve tahminler' 
+            {lang === 'tr'
+              ? 'Portföyünüze özel AI destekli analizler ve tahminler'
               : 'AI-powered analysis and predictions for your portfolio'}
           </p>
         </div>
-        <button
-          onClick={generateFreshAnalysis}
-          disabled={generating}
-          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg text-white font-medium hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center gap-2"
-        >
-          {generating ? (
-            <>
-              <div className="animate-spin">⚙️</div>
-              {lang === 'tr' ? 'Analiz ediliyor...' : 'Analyzing...'}
-            </>
-          ) : (
-            <>
-              ✨ {lang === 'tr' ? 'Yeni Analiz' : 'Fresh Analysis'}
-            </>
+
+        <div className="flex items-center gap-3">
+          {/* AI Credits Badge for Free Users */}
+          {user?.tier === 'free' && (
+            <div className="flex items-center gap-2">
+              <div className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 ${
+                adCredits > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+              }`}>
+                <span>🎟️</span>
+                <span>{adCredits} {lang === 'tr' ? 'Kredi' : 'Credits'}</span>
+              </div>
+              {adCredits === 0 && (
+                <button
+                  onClick={() => setShowAdModal(true)}
+                  className="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg text-sm font-medium hover:bg-yellow-500/30 transition-colors flex items-center gap-1"
+                >
+                  🎬 {lang === 'tr' ? 'Reklam İzle' : 'Watch Ad'}
+                </button>
+              )}
+            </div>
           )}
-        </button>
+
+          <button
+            onClick={generateFreshAnalysis}
+            disabled={generating}
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg text-white font-medium hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center gap-2"
+          >
+            {generating ? (
+              <>
+                <div className="animate-spin">⚙️</div>
+                {lang === 'tr' ? 'Analiz ediliyor...' : 'Analyzing...'}
+              </>
+            ) : (
+              <>
+                ✨ {lang === 'tr' ? 'Yeni Analiz' : 'Fresh Analysis'}
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6">
-          <p className="text-red-400">{error}</p>
+        <div className={`rounded-xl p-4 mb-6 ${
+          needsCredits
+            ? 'bg-yellow-500/10 border border-yellow-500/30'
+            : 'bg-red-500/10 border border-red-500/30'
+        }`}>
+          <div className="flex items-center justify-between">
+            <p className={needsCredits ? 'text-yellow-400' : 'text-red-400'}>{error}</p>
+            {needsCredits && (
+              <button
+                onClick={() => setShowAdModal(true)}
+                className="px-4 py-2 bg-yellow-500 text-black rounded-lg font-medium hover:bg-yellow-400 transition-colors flex items-center gap-2"
+              >
+                🎬 {lang === 'tr' ? 'Reklam İzle' : 'Watch Ad'}
+              </button>
+            )}
+          </div>
         </div>
       )}
 

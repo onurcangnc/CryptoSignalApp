@@ -8,6 +8,7 @@ Sinyal başarı istatistikleri API
 from fastapi import APIRouter, Depends
 from typing import Optional
 import json
+from datetime import datetime, timedelta
 
 from dependencies import get_current_user
 from database import get_signal_success_rate, redis_client

@@ -12,7 +12,13 @@ import secrets
 # ENVIRONMENT
 # =============================================================================
 
-SECRET_KEY = os.getenv("SECRET_KEY", "")
+# SECRET_KEY must be set in production! Generate with: python3 -c "import secrets; print(secrets.token_hex(32))"
+_secret_key = os.getenv("SECRET_KEY", "")
+if not _secret_key:
+    print("[WARNING] SECRET_KEY not set! Generating temporary key (not suitable for production)")
+    _secret_key = secrets.token_hex(32)
+SECRET_KEY = _secret_key
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 DB_PATH = os.getenv("DB_PATH", "/opt/cryptosignal-app/backend/cryptosignal.db")
 
@@ -31,17 +37,22 @@ APP_VERSION = "6.0"
 
 # JWT Token
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRY_HOURS = 72
+JWT_EXPIRY_HOURS = 24  # Token expires in 24 hours (was 72)
 
 # =============================================================================
 # LLM LIMITS
 # =============================================================================
 
 LLM_LIMITS = {
-    "free": 3,
+    "free": 0,      # Free kullanıcılar reklam izleyerek kredi kazanır
     "pro": 20,
     "admin": 999999
 }
+
+# Ad Reward Settings
+AD_REWARD_COOLDOWN = 60  # Reklam izleme arası minimum süre (saniye)
+AD_WATCH_DURATION = 15   # Reklam izleme süresi (saniye)
+MAX_AD_CREDITS = 10      # Maksimum birikebilecek kredi
 
 # =============================================================================
 # TIMEFRAME LABELS
