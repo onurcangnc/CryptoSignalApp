@@ -969,15 +969,17 @@ def get_signal_success_rate(days: int = 30, symbol: str = None) -> Dict:
             ).fetchone()
             avg_loss = avg_loss_row["avg_loss"] if avg_loss_row["avg_loss"] else 0
 
-            # YENİ: Bileşik getiri simülasyonu (100₺ → X₺)
-            all_signals = conn.execute(
-                """SELECT profit_loss_pct FROM signal_tracking
+            # YENİ: Bileşik getiri simülasyonu - SADECE AL/SAT sinyalleri (BEKLE hariç)
+            # BEKLE = pozisyon yok = bileşik getiriye dahil edilmemeli
+            trade_signals = conn.execute(
+                """SELECT profit_loss_pct, signal FROM signal_tracking
                    WHERE created_at >= ? AND result IS NOT NULL
+                   AND signal IN ('AL', 'BUY', 'STRONG_BUY', 'GÜÇLÜ AL', 'SAT', 'SELL', 'STRONG_SELL', 'GÜÇLÜ SAT')
                    ORDER BY created_at ASC""",
                 (since,)
             ).fetchall()
 
-            compound_return = calculate_compound_return([s["profit_loss_pct"] for s in all_signals])
+            compound_return = calculate_compound_return([s["profit_loss_pct"] for s in trade_signals])
 
             # YENİ: En başarılı 3 sinyal
             top_signals_rows = conn.execute(
@@ -1027,12 +1029,34 @@ def get_signal_success_rate(days: int = 30, symbol: str = None) -> Dict:
                 (since,)
             ).fetchall()
 
+            # YENİ: Trade (AL/SAT) vs BEKLE ayrımı
+            trade_total = conn.execute(
+                """SELECT COUNT(*) as cnt FROM signal_tracking
+                   WHERE created_at >= ? AND result IS NOT NULL
+                   AND signal IN ('AL', 'BUY', 'STRONG_BUY', 'GÜÇLÜ AL', 'SAT', 'SELL', 'STRONG_SELL', 'GÜÇLÜ SAT')""",
+                (since,)
+            ).fetchone()["cnt"]
+
+            trade_successful = conn.execute(
+                """SELECT COUNT(*) as cnt FROM signal_tracking
+                   WHERE created_at >= ? AND is_successful=1
+                   AND signal IN ('AL', 'BUY', 'STRONG_BUY', 'GÜÇLÜ AL', 'SAT', 'SELL', 'STRONG_SELL', 'GÜÇLÜ SAT')""",
+                (since,)
+            ).fetchone()["cnt"]
+
+            trade_success_rate = (trade_successful / trade_total * 100) if trade_total > 0 else 0
+
             return {
                 "total_signals": total,
                 "successful_signals": successful,
                 "success_rate": round(success_rate, 2),
                 "days": days,
                 "symbol": symbol,
+
+                # YENİ: Trade-only metrikler (AL/SAT - BEKLE hariç)
+                "trade_total": trade_total,
+                "trade_successful": trade_successful,
+                "trade_success_rate": round(trade_success_rate, 2),
 
                 # YENİ: Gelişmiş metrikler
                 "avg_profit_pct": round(avg_profit, 2),
@@ -1264,3 +1288,148 @@ def deactivate_price_alert(alert_id: str, user_id: str) -> bool:
     except Exception as e:
         print(f"[DB] Alert deactivate error: {e}")
         return False
+
+
+# =============================================================================
+# AI PORTFOLIO ANALYSIS (Kalıcı Kayıt)
+# =============================================================================
+
+def init_ai_analysis_table():
+    """AI analiz tablosunu oluştur (yoksa)"""
+    try:
+        with get_db() as conn:
+            c = conn.cursor()
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS ai_portfolio_analysis (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    analysis_data TEXT NOT NULL,
+                    health_score INTEGER,
+                    risk_level TEXT,
+                    total_value REAL,
+                    created_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    UNIQUE(user_id)
+                )
+            ''')
+            c.execute("""
+                CREATE INDEX IF NOT EXISTS idx_ai_analysis_user
+                ON ai_portfolio_analysis(user_id, created_at DESC)
+            """)
+            conn.commit()
+            print("[DB] AI portfolio analysis table initialized")
+    except Exception as e:
+        print(f"[DB] AI analysis table init error: {e}")
+
+
+def save_ai_analysis(user_id: str, analysis_data: Dict, expires_hours: int = 24) -> bool:
+    """
+    AI portfolio analizini veritabanına kaydet
+
+    Args:
+        user_id: Kullanıcı ID
+        analysis_data: Analiz verisi (dict)
+        expires_hours: Geçerlilik süresi (saat)
+
+    Returns:
+        Başarılı mı
+    """
+    import uuid
+
+    try:
+        # Tabloyu oluştur (yoksa)
+        init_ai_analysis_table()
+
+        analysis_id = str(uuid.uuid4())
+        created_at = datetime.utcnow()
+        expires_at = created_at + timedelta(hours=expires_hours)
+
+        # Metrikler çıkar
+        health_score = analysis_data.get('portfolio_health', {}).get('score', 0)
+        risk_level = analysis_data.get('risk_level', 'unknown')
+        total_value = analysis_data.get('total_value', 0)
+
+        with get_db() as conn:
+            c = conn.cursor()
+            # Eski kayıt varsa sil (UPSERT)
+            c.execute("DELETE FROM ai_portfolio_analysis WHERE user_id = ?", (user_id,))
+            c.execute("""
+                INSERT INTO ai_portfolio_analysis
+                (id, user_id, analysis_data, health_score, risk_level, total_value, created_at, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                analysis_id,
+                user_id,
+                json.dumps(analysis_data, ensure_ascii=False),
+                health_score,
+                risk_level,
+                total_value,
+                created_at.isoformat(),
+                expires_at.isoformat()
+            ))
+            conn.commit()
+            print(f"[DB] AI analysis saved for user {user_id}")
+            return True
+    except Exception as e:
+        print(f"[DB] AI analysis save error: {e}")
+        return False
+
+
+def get_ai_analysis(user_id: str) -> Optional[Dict]:
+    """
+    Kullanıcının AI analizini veritabanından getir
+
+    Returns:
+        Geçerli analiz verisi veya None (süresi dolmuş/yok)
+    """
+    try:
+        # Tabloyu oluştur (yoksa)
+        init_ai_analysis_table()
+
+        with get_db() as conn:
+            c = conn.cursor()
+            c.execute("""
+                SELECT analysis_data, created_at, expires_at
+                FROM ai_portfolio_analysis
+                WHERE user_id = ?
+            """, (user_id,))
+
+            row = c.fetchone()
+
+            if not row:
+                return None
+
+            # Süre kontrolü
+            expires_at = datetime.fromisoformat(row['expires_at'])
+            if datetime.utcnow() > expires_at:
+                print(f"[DB] AI analysis expired for user {user_id}")
+                return None
+
+            # Analizi parse et
+            analysis = json.loads(row['analysis_data'])
+            analysis['_db_created_at'] = row['created_at']
+            analysis['_db_expires_at'] = row['expires_at']
+
+            return analysis
+    except Exception as e:
+        print(f"[DB] AI analysis get error: {e}")
+        return None
+
+
+def get_ai_analysis_history(user_id: str, limit: int = 10) -> List[Dict]:
+    """Kullanıcının AI analiz geçmişini getir (admin için)"""
+    try:
+        with get_db() as conn:
+            c = conn.cursor()
+            c.execute("""
+                SELECT id, health_score, risk_level, total_value, created_at
+                FROM ai_portfolio_analysis
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+            """, (user_id, limit))
+
+            return [dict(row) for row in c.fetchall()]
+    except Exception as e:
+        print(f"[DB] AI analysis history error: {e}")
+        return []

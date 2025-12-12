@@ -12,7 +12,8 @@ from datetime import datetime, timedelta
 
 from database import (
     redis_client, get_portfolio, get_db,
-    increment_llm_usage, today_str, use_ad_credit, get_ad_credits
+    increment_llm_usage, today_str, use_ad_credit, get_ad_credits,
+    save_ai_analysis, get_ai_analysis
 )
 from dependencies import get_current_user, check_llm_quota
 from services.llm_service import llm_service
@@ -27,21 +28,38 @@ router = APIRouter(prefix="/api/ai-summary", tags=["AI Summary"])
 @router.get("/portfolio")
 async def get_portfolio_summary(user: dict = Depends(get_current_user)):
     """
-    Kullanıcının portföyü için AI özeti getir (cache'den)
-    - LLM kullanmaz
-    - Herkes erişebilir
+    Kullanıcının portföyü için AI özeti getir
+    Öncelik sırası:
+    1. Redis cache (hızlı, 1 saat)
+    2. SQLite DB (kalıcı, 24 saat)
+    3. Temel özet (LLM kullanmadan)
     """
-    # Cache'den al
-    cache_key = f"ai_summary:portfolio:{user['id']}"
+    user_id = user['id']
+
+    # 1. Redis cache kontrol
+    cache_key = f"ai_summary:portfolio:{user_id}"
     cached = redis_client.get(cache_key)
-    
+
     if cached:
         try:
+            print(f"[AI Summary] Cache hit for user {user_id}")
             return json.loads(cached)
         except:
             pass
-    
-    # Cache yoksa temel özet döndür
+
+    # 2. SQLite DB kontrol (kalıcı kayıt)
+    db_analysis = get_ai_analysis(user_id)
+    if db_analysis:
+        print(f"[AI Summary] DB hit for user {user_id}")
+        # Redis cache'i de güncelle (sonraki istekler için hızlı)
+        try:
+            redis_client.setex(cache_key, 3600, json.dumps(db_analysis))
+        except:
+            pass
+        return db_analysis
+
+    # 3. Analiz yoksa temel özet döndür
+    print(f"[AI Summary] No analysis found for user {user_id}, returning basic summary")
     return await generate_basic_summary(user)
 
 
@@ -51,8 +69,10 @@ async def analyze_portfolio(user: dict = Depends(get_current_user)):
     Yeni AI analizi oluştur
     - LLM kullanır (1 quota veya 1 ad_credit)
     - Rate limited
+    - Sonucu hem Redis'e hem SQLite'a kaydeder
     """
-    print(f"[AI Summary] analyze_portfolio called for user: {user.get('id', 'unknown')}")
+    user_id = user.get('id', 'unknown')
+    print(f"[AI Summary] analyze_portfolio called for user: {user_id}")
 
     tier = user.get("tier", "free")
 
@@ -76,18 +96,29 @@ async def analyze_portfolio(user: dict = Depends(get_current_user)):
     # Kullanımı kaydet
     if tier == "free":
         # Free kullanıcılar için ad_credit düş
-        use_ad_credit(user['id'])
+        use_ad_credit(user_id)
     else:
         # Pro/Admin için normal LLM kullanımı
-        increment_llm_usage(user['id'], today_str())
-    
+        increment_llm_usage(user_id, today_str())
+
     # Analiz oluştur
     result = await generate_full_analysis(user)
-    
-    # Cache'e kaydet (1 saat)
-    cache_key = f"ai_summary:portfolio:{user['id']}"
-    redis_client.setex(cache_key, 3600, json.dumps(result))
-    
+
+    # 1. Redis cache'e kaydet (1 saat - hızlı erişim)
+    cache_key = f"ai_summary:portfolio:{user_id}"
+    try:
+        redis_client.setex(cache_key, 3600, json.dumps(result))
+        print(f"[AI Summary] Redis cache saved for user {user_id}")
+    except Exception as e:
+        print(f"[AI Summary] Redis cache error: {e}")
+
+    # 2. SQLite DB'ye kaydet (24 saat - kalıcı)
+    try:
+        save_ai_analysis(user_id, result, expires_hours=24)
+        print(f"[AI Summary] DB saved for user {user_id}")
+    except Exception as e:
+        print(f"[AI Summary] DB save error: {e}")
+
     return result
 
 

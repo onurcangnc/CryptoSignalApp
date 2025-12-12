@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
 """
-CryptoSignal - Signal Generator Worker v1.1
+CryptoSignal - Signal Generator Worker v1.2
 ===========================================
 Multi-Factor Confidence System ile sinyal uretimi
+
+v1.2 Guncellemeler:
+- ADD: Quality Gate - Dusuk kaliteli trade sinyallerini filtrele
+  - MIN_CONFIDENCE_FOR_TRADE = 50 (HIGH risk icin +10)
+  - MIN_FACTOR_ALIGNMENT = 3 (en az 3/6 faktor uyumlu olmali)
+- ADD: signal_raw ve quality_gate metadata
+- ADD: Quality Gate stats loglama
 
 v1.1 Guncellemeler (GPT-5.2 feedback):
 - FIX: String tarih karsilastirmasi -> datetime.fromisoformat()
@@ -16,6 +23,7 @@ Ozellikler:
 - Futures data entegrasyonu
 - 6 farkli timeframe destegi
 - Signal tracking (DB'ye kayit)
+- Quality Gate (trade kalite filtresi)
 """
 
 import asyncio
@@ -62,10 +70,100 @@ COINGECKO_BACKOFF = 5  # Seconds between batches
 # Analysis Service instance
 analysis_service = AnalysisService()
 
-print("[Signal Worker v1.1] Starting...")
+# --- Quality Gate (Trade kalitesi filtresi) ---
+MIN_CONFIDENCE_FOR_TRADE = 50          # %50 altı → BEKLE
+MIN_FACTOR_ALIGNMENT = 3               # En az 3/6 faktör uyumlu olmalı
+HIGH_RISK_CONFIDENCE_PENALTY = 10      # HIGH risk → +10 threshold
+
+BUY_SIGNALS = {"BUY", "AL", "STRONG_BUY", "GÜÇLÜ AL"}
+SELL_SIGNALS = {"SELL", "SAT", "STRONG_SELL", "GÜÇLÜ SAT"}
+HOLD_SIGNALS = {"HOLD", "BEKLE"}
+
+
+def _norm_risk(risk_level: str) -> str:
+    """Risk seviyesini normalize et"""
+    if not risk_level:
+        return "UNKNOWN"
+    r = risk_level.strip().upper()
+    if r in {"HIGH", "YÜKSEK"}:
+        return "HIGH"
+    if r in {"MEDIUM", "ORTA"}:
+        return "MEDIUM"
+    if r in {"LOW", "DÜŞÜK", "DUSUK"}:
+        return "LOW"
+    return r
+
+
+def _extract_alignment(details: dict) -> int:
+    """
+    confidence_details içinden factor uyum sayısını çıkarır.
+    Hem int alanlar hem list alanlar için tolerant.
+    """
+    if not isinstance(details, dict):
+        return 0
+
+    fb = details.get("factors_buy")
+    fs = details.get("factors_sell")
+
+    # int olarak geliyorsa
+    if isinstance(fb, (int, float)) or isinstance(fs, (int, float)):
+        try:
+            fb = int(fb or 0)
+            fs = int(fs or 0)
+            return max(fb, fs)
+        except Exception:
+            return 0
+
+    # list olarak geliyorsa
+    if isinstance(fb, list) or isinstance(fs, list):
+        fb_n = len(fb or [])
+        fs_n = len(fs or [])
+        return max(fb_n, fs_n)
+
+    return 0
+
+
+def should_emit_signal(analysis: dict, risk_level: str) -> tuple:
+    """
+    AL/SAT üretmeden önce kalite kontrolü.
+    Düşük kaliteyi BEKLE'ye çevirir.
+
+    Returns:
+        (final_signal, confidence, gate_reason)
+    """
+    signal = (analysis.get("signal") or "BEKLE").strip()
+    confidence = float(analysis.get("confidence") or 0)
+    details = analysis.get("confidence_details") or {}
+
+    # Zaten BEKLE ise
+    if signal in HOLD_SIGNALS:
+        return "HOLD", confidence, "already_hold"
+
+    # Trade sinyali değilse güvenli tarafta kal
+    if signal not in BUY_SIGNALS and signal not in SELL_SIGNALS:
+        return "HOLD", confidence, f"unknown_signal_{signal}"
+
+    # Risk seviyesine göre threshold ayarla
+    risk = _norm_risk(risk_level)
+    threshold = MIN_CONFIDENCE_FOR_TRADE + (HIGH_RISK_CONFIDENCE_PENALTY if risk == "HIGH" else 0)
+
+    # Confidence kontrolü
+    if confidence < threshold:
+        return "HOLD", confidence, f"low_confidence_{confidence:.1f}<{threshold}"
+
+    # Faktör uyumu kontrolü
+    alignment = _extract_alignment(details)
+    if alignment < MIN_FACTOR_ALIGNMENT:
+        return "HOLD", confidence, f"low_alignment_{alignment}<{MIN_FACTOR_ALIGNMENT}"
+
+    return signal, confidence, "passed"
+
+
+print("[Signal Worker v1.2] Starting with Quality Gate...")
 print(f"  Update interval: {UPDATE_INTERVAL}s")
 print(f"  Timeframes: {', '.join(TIMEFRAMES)}")
 print(f"  CoinGecko concurrency: 3")
+print(f"  Quality Gate: min_conf={MIN_CONFIDENCE_FOR_TRADE}, min_align={MIN_FACTOR_ALIGNMENT}")
 
 
 def get_news_sentiment_for_coin(symbol: str, news_db: Dict) -> Optional[Dict]:
@@ -235,6 +333,32 @@ def generate_signals_for_coin(
     # Risk seviyesi hesapla
     risk_result = analysis_service.calculate_risk_level(symbol, technical)
 
+    # --- Apply Quality Gate ---
+    raw_signal = signal_result["signal"]
+    raw_signal_tr = signal_result["signal_tr"]
+    risk_level = risk_result["level"]
+
+    final_signal, final_conf, gate_reason = should_emit_signal(signal_result, risk_level)
+
+    # Signal TR'yi de güncelle
+    signal_tr_map = {
+        "HOLD": "BEKLE",
+        "BUY": "AL",
+        "STRONG_BUY": "GÜÇLÜ AL",
+        "SELL": "SAT",
+        "STRONG_SELL": "GÜÇLÜ SAT"
+    }
+    final_signal_tr = signal_tr_map.get(final_signal, raw_signal_tr)
+
+    # Quality gate metadata
+    quality_gate = {
+        "passed": gate_reason == "passed",
+        "reason": gate_reason,
+        "original_signal": raw_signal,
+        "min_conf": MIN_CONFIDENCE_FOR_TRADE,
+        "min_align": MIN_FACTOR_ALIGNMENT,
+    }
+
     # Sonucu hazirla
     base_result = {
         "symbol": symbol,
@@ -248,8 +372,10 @@ def generate_signals_for_coin(
         "rank": price_data.get("rank", 999),
         "image": price_data.get("image", ""),
         "source": price_data.get("source", "coingecko"),
-        "signal": signal_result["signal"],
-        "signal_tr": signal_result["signal_tr"],
+        "signal": final_signal,
+        "signal_tr": final_signal_tr,
+        "signal_raw": raw_signal,
+        "quality_gate": quality_gate,
         "score": signal_result["score"],
         "confidence": signal_result["confidence"],
         "confidence_details": signal_result["confidence_details"],
@@ -304,6 +430,7 @@ async def generate_all_signals():
     # Top 200 coin icin sinyal uret
     all_signals = {tf: {"signals": {}, "stats": {}, "risk_stats": {}, "count": 0} for tf in TIMEFRAMES}
     processed = 0
+    quality_gate_stats = {"passed": 0, "blocked": 0, "reasons": {}}
 
     for symbol, price_data in sorted_coins[:200]:
         try:
@@ -342,6 +469,24 @@ async def generate_all_signals():
                     all_signals[tf]["risk_stats"][risk] = 0
                 all_signals[tf]["risk_stats"][risk] += 1
 
+                # Quality gate stats (sadece 1d için)
+                if tf == "1d":
+                    qg = signal_data.get("quality_gate", {})
+                    if qg.get("passed"):
+                        quality_gate_stats["passed"] += 1
+                    elif qg.get("original_signal") in BUY_SIGNALS | SELL_SIGNALS:
+                        # Sadece trade sinyali engellenenleri say
+                        quality_gate_stats["blocked"] += 1
+                        reason = qg.get("reason", "unknown")
+                        # Reason'ı kategorize et
+                        if reason.startswith("low_confidence"):
+                            reason_key = "low_confidence"
+                        elif reason.startswith("low_alignment"):
+                            reason_key = "low_alignment"
+                        else:
+                            reason_key = reason
+                        quality_gate_stats["reasons"][reason_key] = quality_gate_stats["reasons"].get(reason_key, 0) + 1
+
             processed += 1
 
             if processed % 50 == 0:
@@ -370,6 +515,12 @@ async def generate_all_signals():
     hold_count = stats_1d.get("HOLD", 0)
 
     print(f"  Total: {processed} | BUY: {buy_count} | HOLD: {hold_count} | SELL: {sell_count}")
+
+    # Quality Gate stats
+    qg_passed = quality_gate_stats["passed"]
+    qg_blocked = quality_gate_stats["blocked"]
+    qg_reasons = quality_gate_stats["reasons"]
+    print(f"  [QualityGate] Passed: {qg_passed} | Blocked: {qg_blocked} | Reasons: {qg_reasons}")
 
     # Signal tracking icin kayit - Tum coinler (akilli filtreleme ile)
     await track_all_signals(all_signals["1d"]["signals"])

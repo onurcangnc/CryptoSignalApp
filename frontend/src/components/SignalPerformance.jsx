@@ -2,49 +2,55 @@ import React from 'react'
 
 /**
  * Başarı Oranı Kartı - Yeşil Tema
- * Kullanıcıya kaç tavsiyeden kazandığını gösterir
+ * AL/SAT tavsiyelerinin başarı oranını gösterir (BEKLE hariç)
  */
 export const SuccessRateCard = ({ stats }) => {
   if (!stats || stats.insufficient_data) {
     return null
   }
 
-  const successPct = stats.success_rate || 0
-  const profitable = stats.successful_signals || 0
-  const total = stats.total_signals || 0
+  // Trade-only metrikler (AL/SAT - BEKLE hariç)
+  const tradeTotal = stats.trade_total || 0
+  const tradeSuccessful = stats.trade_successful || 0
+  const tradeSuccessRate = stats.trade_success_rate || 0
+
+  // Hiç trade yoksa gösterme
+  if (tradeTotal === 0) {
+    return null
+  }
 
   return (
     <div className="group bg-gradient-to-br from-green-900/20 to-emerald-900/20 rounded-xl p-5 border border-green-700/50 hover:border-green-500/70 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/30 hover:-translate-y-1">
       <h3 className="text-gray-400 text-sm mb-3 flex items-center gap-2">
-        <span>✅</span>
-        <span>Kaç Tavsiyeden Kazandık?</span>
+        <span>📊</span>
+        <span>AL/SAT Tavsiye Başarısı</span>
       </h3>
 
       <div className="space-y-3">
         {/* Ana sayı */}
         <div className="flex items-baseline gap-2">
           <span className="text-5xl font-bold text-green-400">
-            {profitable}
+            {tradeSuccessful}
           </span>
-          <span className="text-2xl text-gray-400">/ {total}</span>
+          <span className="text-2xl text-gray-400">/ {tradeTotal}</span>
         </div>
 
         {/* Açıklama metni */}
         <div className="text-sm text-gray-300">
-          Her 10 tavsiyeden <span className="font-bold text-green-400">{Math.round(successPct/10)}'inde</span> para kazandınız
+          {tradeTotal} AL/SAT tavsiyesinden <span className="font-bold text-green-400">{tradeSuccessful}</span> tanesi kârlı
         </div>
 
         {/* Progress bar */}
         <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-1000"
-            style={{ width: `${successPct}%` }}
+            style={{ width: `${tradeSuccessRate}%` }}
           />
         </div>
 
         {/* Yüzde gösterimi */}
         <div className="text-right text-xs text-green-400 font-medium">
-          %{successPct.toFixed(1)}
+          %{tradeSuccessRate.toFixed(1)} başarı oranı
         </div>
       </div>
     </div>
