@@ -803,15 +803,19 @@ def update_signal_result(signal_id: str, actual_price: float) -> None:
         stop_loss = row["stop_loss"]
         signal = row["signal"]
 
-        # Kar/Zarar hesapla
-        profit_loss_pct = ((actual_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+        # Ham fiyat değişimi
+        raw_price_change_pct = ((actual_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
 
         # Başarılı mı?
         is_successful = 0
         result = ""
+        profit_loss_pct = 0  # Gerçek kar/zarar (sinyal yönüne göre)
 
         if signal in ["BUY", "AL", "STRONG_BUY", "GÜÇLÜ AL"]:
             # AL sinyali - fiyat yükseldi mi?
+            # AL sinyalinde: fiyat yükselirse kâr
+            profit_loss_pct = raw_price_change_pct
+
             if actual_price >= target_price:
                 is_successful = 1
                 result = "TARGET_HIT"
@@ -827,6 +831,10 @@ def update_signal_result(signal_id: str, actual_price: float) -> None:
 
         elif signal in ["SELL", "SAT", "STRONG_SELL", "GÜÇLÜ SAT"]:
             # SAT sinyali - fiyat düştü mü?
+            # SAT sinyalinde: fiyat düşerse kâr (short pozisyon mantığı)
+            # Yani fiyat %10 düşerse, bu %10 kâr demek
+            profit_loss_pct = -raw_price_change_pct  # Ters çevir
+
             if actual_price <= target_price:
                 is_successful = 1
                 result = "TARGET_HIT"
@@ -842,7 +850,10 @@ def update_signal_result(signal_id: str, actual_price: float) -> None:
 
         else:  # HOLD, BEKLE
             # Bekle sinyali - stabilite kontrolü
-            if abs(profit_loss_pct) < 5:
+            # BEKLE sinyali = pozisyon alma = kar/zarar yok
+            profit_loss_pct = 0  # BEKLE sinyallerinde kar/zarar yok
+
+            if abs(raw_price_change_pct) < 5:
                 is_successful = 1
                 result = "STABLE"
             else:

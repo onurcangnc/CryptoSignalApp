@@ -100,7 +100,7 @@ export const CompoundReturnCard = ({ stats }) => {
         {/* Açıklama */}
         <div className="text-xs text-gray-500 italic flex items-start gap-1">
           <span>💡</span>
-          <span>Tüm tavsiyeleri takip etseydik bu kadar kazanırdık</span>
+          <span>AL/SAT tavsiyelerini takip etseydik bu kadar kazanırdık</span>
         </div>
       </div>
     </div>
