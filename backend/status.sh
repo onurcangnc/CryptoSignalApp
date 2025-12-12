@@ -46,7 +46,7 @@ check_service cryptosignal-telegram-admin
 echo ""
 echo "🌐 Application:"
 check_service cryptosignal-backend
-check_service cryptosignal-frontend
+check_service nginx
 
 # Redis stats
 echo ""
@@ -74,6 +74,6 @@ fi
 echo ""
 echo "================================"
 echo "🔗 Endpoints:"
-echo "  Frontend: http://localhost:3000"
+echo "  Frontend: https://pipelinetest.com.tr"
 echo "  Backend:  http://localhost:8000"
 echo "  API Docs: http://localhost:8000/docs"

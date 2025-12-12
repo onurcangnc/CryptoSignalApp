@@ -39,7 +39,12 @@ restart_service cryptosignal-telegram-admin
 echo ""
 echo "🌐 Application:"
 restart_service cryptosignal-backend
-restart_service cryptosignal-frontend
+echo -n "Reloading nginx... "
+if systemctl reload nginx 2>/dev/null; then
+    echo -e "${GREEN}✓${NC}"
+else
+    echo -e "${RED}✗${NC}"
+fi
 
 # Wait a moment for services to start
 sleep 2
@@ -52,7 +57,7 @@ echo ""
 
 for svc in redis-server \
            cryptosignal-backend \
-           cryptosignal-frontend \
+           nginx \
            cryptosignal-prices \
            cryptosignal-futures \
            cryptosignal-news \

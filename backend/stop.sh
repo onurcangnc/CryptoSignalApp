@@ -22,8 +22,8 @@ stop_service() {
 
 # Stop in reverse order (applications first, core last)
 echo "🌐 Application:"
-stop_service cryptosignal-frontend
 stop_service cryptosignal-backend
+echo "  (nginx not stopped - shared system service)"
 
 echo ""
 echo "⚙️ Workers:"
