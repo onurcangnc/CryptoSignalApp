@@ -575,9 +575,6 @@ async def track_all_signals(signals_1d: Dict):
             continue
 
         try:
-            # Timeframe'e gore check_date hesapla (1d = 1 gun sonra)
-            check_date = datetime.utcnow() + timedelta(days=1)
-
             # Target ve stop-loss hesapla (basit ATR bazli)
             price = signal_data.get("price", 0)
             volatility = signal_data.get("technical", {}).get("volatility", {})
@@ -590,16 +587,19 @@ async def track_all_signals(signals_1d: Dict):
                 target_price = price * (1 - atr_pct / 100 * 2)
                 stop_loss = price * (1 + atr_pct / 100)
 
-            # DB'ye kaydet
+            # Signal TR mapping
+            signal_tr = signal_data.get("signal_tr", signal)
+
+            # DB'ye kaydet (check_date fonksiyon içinde hesaplanıyor)
             save_signal_track(
                 symbol=symbol,
                 signal=signal,
-                confidence=signal_data.get("confidence", 0),
+                signal_tr=signal_tr,
+                confidence=int(signal_data.get("confidence", 0)),
                 entry_price=price,
                 target_price=target_price,
                 stop_loss=stop_loss,
-                timeframe="1d",
-                check_date=check_date
+                timeframe="1d"
             )
             tracked += 1
 
