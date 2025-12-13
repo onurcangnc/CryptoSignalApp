@@ -365,6 +365,13 @@ const Signals = ({ t, lang }) => {
                       )}
                     </div>
                   )}
+                  {/* Insufficient Data Warning */}
+                  {data.quality_gate?.insufficient_data && (
+                    <div className="mt-1 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <span>⚠️</span>
+                      <span>Yetersiz veri - indikatörler hesaplanamadı</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Quick Info */}
