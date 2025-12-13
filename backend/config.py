@@ -83,8 +83,40 @@ TIMEFRAME_LABELS = {
 # =============================================================================
 
 STABLECOINS = {
-    'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP', 'FRAX', 
-    'PYUSD', 'FDUSD', 'USDD', 'USDS', 'USD1', 'USDE', 'WBETH'
+    'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP', 'FRAX',
+    'PYUSD', 'FDUSD', 'USDD', 'USDS', 'USD1', 'USDE', 'USDG',
+    'CRVUSD', 'GHO', 'EURC', 'USX', 'USR', 'USDB', 'RLUSD',
+    'BFUSD', 'USDTB', 'USDAI', 'USDY', 'SUSDS', 'SUSDE'
+}
+
+# Wrapped/Bridge tokenları - asıl varlıkla duplicate, sinyal verilmeyecek
+WRAPPED_TOKENS = {
+    # Wrapped BTC variants
+    'WBTC', 'CBBTC', 'TBTC', 'SBTC', 'FBTC', 'LBTC', 'CLBTC', 'SOLVBTC', 'BTC.B', 'ENZOBTC',
+    # Wrapped ETH variants
+    'WETH', 'CBETH', 'STETH', 'WBETH', 'RETH', 'LSETH', 'METH', 'SWETH', 'OSETH', 'EETH',
+    'RSETH', 'EZETH', 'FRXETH', 'ETHX', 'LIQUIDETH', 'GTETH',
+    # Wrapped SOL variants
+    'WSOL', 'JITOSOL', 'MSOL', 'BNSOL', 'JUPSOL',
+    # Wrapped BNB
+    'WBNB',
+    # Wrapped AVAX
+    'SAVAX', 'WAVAX',
+    # Wrapped FLR
+    'WFLR',
+    # Duplicate tickers (same asset, different chain/version)
+    'RENDER',  # RNDR duplicate
+    'MATIC',   # POL'a migrate oldu
+    'WAPE',    # APE wrapped
+}
+
+# Bu coinlere sinyal verilmeyecek (stablecoin + wrapped + diğer)
+SKIP_SIGNAL_COINS = STABLECOINS | WRAPPED_TOKENS | {
+    # Özel tokenlar - sinyal anlamsız
+    'USDT0',   # Tether variant
+    'BSC-USD', # Binance USD variant
+    'CGETH.HASHKEY',  # Exchange specific
+    'FIGR_HELOC',     # Non-crypto asset
 }
 
 MEGA_CAP_COINS = {'BTC', 'ETH'}

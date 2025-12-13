@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
 """
-CryptoSignal - Signal Generator Worker v1.2
+CryptoSignal - Signal Generator Worker v1.6
 ===========================================
 Multi-Factor Confidence System ile sinyal uretimi
 
-v1.2 Guncellemeler:
-- ADD: Quality Gate - Dusuk kaliteli trade sinyallerini filtrele
-  - MIN_CONFIDENCE_FOR_TRADE = 50 (HIGH risk icin +10)
-  - MIN_FACTOR_ALIGNMENT = 3 (en az 3/6 faktor uyumlu olmali)
-- ADD: signal_raw ve quality_gate metadata
-- ADD: Quality Gate stats loglama
+v1.6 Guncellemeler:
+- ADD: Stablecoin/Wrapped token filtresi (SKIP_SIGNAL_COINS)
+- ADD: Yetersiz veri gostergesi (data_quality flag)
+- ADD: Skipped coins log istatistikleri
 
-v1.1 Guncellemeler (GPT-5.2 feedback):
-- FIX: String tarih karsilastirmasi -> datetime.fromisoformat()
-- FIX: Signal tracking aktif (top 20 coin)
-- ADD: Timeframe uyarisi (ayni veri kullanildigi belirtiliyor)
-- ADD: Semaphore ile rate limiting
+v1.5 Guncellemeler:
+- FIX: _has_indicators() MACD float olarak kabul ediyor
+- FIX: MA kontrolu ma_20/ma_50 anahtarlari ile
+
+v1.4 Guncellemeler:
+- ADD: Multi-source historical data (Binance -> CMC -> CoinGecko)
+- FIX: _has_indicators() technical dict aliyor
+
+v1.2-1.3 Guncellemeler:
+- ADD: Quality Gate - Dusuk kaliteli trade sinyallerini filtrele
+- ADD: signal_raw ve quality_gate metadata
 
 Ozellikler:
 - analysis_service.generate_signal() kullanimi
@@ -24,6 +28,7 @@ Ozellikler:
 - 6 farkli timeframe destegi
 - Signal tracking (DB'ye kayit)
 - Quality Gate (trade kalite filtresi)
+- Stablecoin/Wrapped token filtresi
 """
 
 import asyncio
@@ -40,6 +45,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.analysis_service import AnalysisService
 from database import save_signal_track
+from config import SKIP_SIGNAL_COINS, STABLECOINS, WRAPPED_TOKENS
 
 # Redis connection
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
@@ -207,11 +213,12 @@ def should_emit_signal(analysis: dict, risk_level: str, technical: dict = None) 
     return signal, confidence, "passed"
 
 
-print("[Signal Worker v1.5] Starting with Multi-Source Historical Data...")
+print("[Signal Worker v1.6] Starting with Multi-Source Historical Data + Coin Filters...")
 print(f"  Update interval: {UPDATE_INTERVAL}s")
 print(f"  Timeframes: {', '.join(TIMEFRAMES)}")
 print(f"  Historical data sources: Binance -> CMC -> CoinGecko (fallback chain)")
 print(f"  Quality Gate: min_conf={MIN_CONFIDENCE_FOR_TRADE}, min_align={MIN_FACTOR_ALIGNMENT}")
+print(f"  Skip filters: {len(SKIP_SIGNAL_COINS)} coins (stablecoins, wrapped tokens)")
 
 
 def get_news_sentiment_for_coin(symbol: str, news_db: Dict) -> Optional[Dict]:
@@ -473,6 +480,16 @@ def generate_signals_for_coin(
     }
     final_signal_tr = signal_tr_map.get(final_signal, raw_signal_tr)
 
+    # Yetersiz veri kontrolü - confidence 45 ve tüm faktörler neutral ise
+    conf_details = signal_result.get("confidence_details", {})
+    factors_neutral = conf_details.get("factors_neutral", 0)
+    data_quality = conf_details.get("data_quality", 0)
+    has_insufficient_data = (
+        signal_result["confidence"] <= 45 and
+        factors_neutral >= 5 and  # 6 faktörden 5+ neutral
+        data_quality <= 4  # Veri kalitesi düşük
+    )
+
     # Quality gate metadata
     quality_gate = {
         "passed": gate_reason == "passed",
@@ -480,6 +497,7 @@ def generate_signals_for_coin(
         "original_signal": raw_signal,
         "min_conf": MIN_CONFIDENCE_FOR_TRADE,
         "min_align": MIN_FACTOR_ALIGNMENT,
+        "insufficient_data": has_insufficient_data,
     }
 
     # Sonucu hazirla
@@ -553,10 +571,21 @@ async def generate_all_signals():
     # Top 200 coin icin sinyal uret
     all_signals = {tf: {"signals": {}, "stats": {}, "risk_stats": {}, "count": 0} for tf in TIMEFRAMES}
     processed = 0
+    skipped_coins = {"stablecoin": 0, "wrapped": 0, "other": 0}
     quality_gate_stats = {"passed": 0, "blocked": 0, "reasons": {}}
 
     for symbol, price_data in sorted_coins[:200]:
         try:
+            # Skip stablecoins, wrapped tokens, and other non-tradeable assets
+            if symbol in SKIP_SIGNAL_COINS:
+                if symbol in STABLECOINS:
+                    skipped_coins["stablecoin"] += 1
+                elif symbol in WRAPPED_TOKENS:
+                    skipped_coins["wrapped"] += 1
+                else:
+                    skipped_coins["other"] += 1
+                continue
+
             # News sentiment
             news_sentiment = get_news_sentiment_for_coin(symbol, news_db)
 
@@ -639,6 +668,10 @@ async def generate_all_signals():
     hold_count = stats_1d.get("HOLD", 0)
 
     print(f"  Total: {processed} | BUY: {buy_count} | HOLD: {hold_count} | SELL: {sell_count}")
+
+    # Skipped coins stats
+    total_skipped = sum(skipped_coins.values())
+    print(f"  [Skipped] Total: {total_skipped} | Stablecoin: {skipped_coins['stablecoin']} | Wrapped: {skipped_coins['wrapped']} | Other: {skipped_coins['other']}")
 
     # Quality Gate stats
     qg_passed = quality_gate_stats["passed"]
