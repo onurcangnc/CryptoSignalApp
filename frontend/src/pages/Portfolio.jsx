@@ -18,6 +18,7 @@ const Portfolio = ({ t, lang }) => {
     currency: 'USD',      // Para birimi (USD, TRY, EUR)
     inputMode: 'fiat'     // fiat veya crypto
   })
+  const [coinSearch, setCoinSearch] = useState('')
   
   // Hesaplanan değerler
   const [calculated, setCalculated] = useState({
@@ -58,7 +59,7 @@ const Portfolio = ({ t, lang }) => {
       const [portResp, priceResp, coinsResp] = await Promise.all([
         api.get('/api/portfolio'),
         api.get('/api/prices'),
-        api.get('/api/coins')
+        api.get('/api/coins?limit=1000')  // Tüm coinleri al
       ])
       
       if (portResp.ok) {
@@ -410,23 +411,75 @@ const Portfolio = ({ t, lang }) => {
             </div>
 
             <div className="p-4 space-y-4">
-              {/* Coin Seçimi */}
+              {/* Coin Seçimi - Arama destekli */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Kripto Varlık
                 </label>
-                <select
-                  value={newHolding.coin}
-                  onChange={(e) => setNewHolding({ ...newHolding, coin: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Coin Seçin</option>
-                  {coins.slice(0, 100).map(c => (
-                    <option key={c} value={c}>
-                      {c} {prices[c]?.price ? `- $${prices[c].price.toLocaleString()}` : ''}
-                    </option>
-                  ))}
-                </select>
+                {/* Arama input'u */}
+                <input
+                  type="text"
+                  value={coinSearch}
+                  onChange={(e) => setCoinSearch(e.target.value)}
+                  placeholder="Coin ara... (BTC, ETH, RNDR...)"
+                  className="w-full px-4 py-2 mb-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+                {/* Seçili coin göstergesi */}
+                {newHolding.coin && (
+                  <div className="flex items-center justify-between mb-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                    <span className="font-medium text-blue-700 dark:text-blue-300">
+                      {newHolding.coin} {prices[newHolding.coin]?.price ? `- $${prices[newHolding.coin].price.toLocaleString()}` : ''}
+                    </span>
+                    <button
+                      onClick={() => setNewHolding({ ...newHolding, coin: '' })}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                    >
+                      ✕ Kaldır
+                    </button>
+                  </div>
+                )}
+                {/* Coin listesi */}
+                <div className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+                  {coins
+                    .filter(c => {
+                      if (!coinSearch) return true
+                      const search = coinSearch.toLowerCase()
+                      const name = (prices[c]?.name || '').toLowerCase()
+                      return c.toLowerCase().includes(search) || name.includes(search)
+                    })
+                    .slice(0, 100)  // Performans için görüntüde max 100
+                    .map(c => (
+                      <button
+                        key={c}
+                        onClick={() => {
+                          setNewHolding({ ...newHolding, coin: c })
+                          setCoinSearch('')
+                        }}
+                        className={`w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0 transition ${
+                          newHolding.coin === c ? 'bg-blue-50 dark:bg-blue-900/30' : ''
+                        }`}
+                      >
+                        <span className="font-medium">{c}</span>
+                        <span className="text-gray-500 text-sm ml-2">
+                          {prices[c]?.name || ''}
+                          {prices[c]?.price ? ` - $${prices[c].price.toLocaleString()}` : ''}
+                        </span>
+                      </button>
+                    ))
+                  }
+                  {coins.filter(c => {
+                    if (!coinSearch) return true
+                    const search = coinSearch.toLowerCase()
+                    return c.toLowerCase().includes(search) || (prices[c]?.name || '').toLowerCase().includes(search)
+                  }).length === 0 && (
+                    <div className="px-3 py-4 text-center text-gray-500">
+                      "{coinSearch}" bulunamadı
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {coins.length} coin mevcut - arama yaparak filtreleyin
+                </p>
               </div>
 
               {/* Giriş Modu */}

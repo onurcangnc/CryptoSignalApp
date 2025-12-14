@@ -152,21 +152,40 @@ async def get_prices():
 
 
 @router.get("/coins")
-async def get_coins():
-    """Coin listesi"""
+async def get_coins(limit: int = 500, search: str = None):
+    """
+    Coin listesi - portföy ve diğer seçiciler için
+
+    Args:
+        limit: Maksimum coin sayısı (default 500, max 1000)
+        search: Arama filtresi (symbol veya name içinde arar)
+    """
     try:
         prices_raw = redis_client.get("prices_data")
         prices = json.loads(prices_raw) if prices_raw else {}
-        
+
         # Market cap'e göre sırala
         coins = sorted(
             prices.keys(),
             key=lambda x: prices[x].get("market_cap", 0) or 0,
             reverse=True
         )
-        
+
+        # Arama filtresi uygula
+        if search:
+            search_lower = search.lower()
+            coins = [
+                c for c in coins
+                if search_lower in c.lower() or
+                   search_lower in (prices[c].get("name", "") or "").lower()
+            ]
+
+        # Limit uygula (max 1000)
+        limit = min(limit, 1000)
+        coins = coins[:limit]
+
         details = []
-        for symbol in coins[:200]:
+        for symbol in coins:
             data = prices[symbol]
             details.append({
                 "symbol": symbol,
@@ -176,13 +195,15 @@ async def get_coins():
                 "change_7d": data.get("change_7d", 0),
                 "market_cap": data.get("market_cap", 0),
                 "volume": data.get("volume_24h", 0),
-                "rank": data.get("rank", 0)
+                "rank": data.get("rank", 0),
+                "image": data.get("image", "")
             })
-        
+
         return {
-            "coins": coins[:200],
+            "coins": coins,
             "details": details,
-            "count": len(coins)
+            "count": len(coins),
+            "total_available": len(prices)
         }
     except Exception as e:
         return {"coins": [], "error": str(e)}
