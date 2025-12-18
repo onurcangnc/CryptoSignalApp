@@ -14,7 +14,14 @@
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: #e0e0e0;
             line-height: 1.6;
+            min-height: 100vh;
         }
+        nav { background: rgba(26, 26, 46, 0.95); padding: 15px 20px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(251, 191, 36, 0.2); }
+        nav .nav-container { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .logo { color: #fbbf24; font-size: 1.5rem; font-weight: bold; text-decoration: none; }
+        .nav-links { display: flex; gap: 25px; list-style: none; }
+        .nav-links a { color: #9ca3af; text-decoration: none; font-size: 0.9rem; transition: color 0.3s; }
+        .nav-links a:hover { color: #fbbf24; }
         .container { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
         header { margin-bottom: 40px; }
         h1 { font-size: 2.5rem; color: #fbbf24; margin-bottom: 10px; }
@@ -28,11 +35,32 @@
         .example-box { background: rgba(96, 165, 250, 0.1); border-left: 4px solid #60a5fa; padding: 15px; margin: 20px 0; }
         .warning-box { background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; }
         .cta { background: #fbbf24; color: #1a1a2e; padding: 15px 30px; border-radius: 8px; display: inline-block; margin-top: 30px; text-decoration: none; font-weight: bold; }
+        .disclaimer { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 15px; border-radius: 8px; margin: 30px 0; font-size: 0.85rem; color: #fca5a5; }
         .indicator-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 20px 0; }
         .indicator-card { background: rgba(31, 41, 55, 0.7); padding: 20px; border-radius: 8px; border-left: 3px solid #fbbf24; }
+        footer { background: rgba(26, 26, 46, 0.95); padding: 40px 20px; margin-top: 60px; border-top: 1px solid rgba(251, 191, 36, 0.2); }
+        .footer-content { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px; }
+        .footer-section h4 { color: #fbbf24; margin-bottom: 15px; }
+        .footer-section ul { list-style: none; margin: 0; }
+        .footer-section a { color: #9ca3af; text-decoration: none; font-size: 0.9rem; }
+        .footer-section a:hover { color: #fbbf24; }
+        .footer-bottom { max-width: 1200px; margin: 30px auto 0; padding-top: 20px; border-top: 1px solid rgba(156, 163, 175, 0.2); text-align: center; color: #6b7280; font-size: 0.85rem; }
+        @media (max-width: 768px) { .nav-links { display: none; } h1 { font-size: 1.8rem; } .content { padding: 20px; } }
     </style>
 </head>
 <body>
+    <nav>
+        <div class="nav-container">
+            <a href="/" class="logo">CryptoSignal AI</a>
+            <ul class="nav-links">
+                <li><a href="/">Ana Sayfa</a></li>
+                <li><a href="/blog-bitcoin-2025.html">Blog</a></li>
+                <li><a href="/about.html">Hakkımızda</a></li>
+                <li><a href="/contact.html">İletişim</a></li>
+            </ul>
+        </div>
+    </nav>
+
     <div class="container">
         <header>
             <h1>📈 Teknik Analiz 101: Kripto Para Grafiklerini Okuma Rehberi</h1>
@@ -266,7 +294,46 @@
             </div>
 
             <a href="/" class="cta">AI Teknik Analiz Sinyalleri</a>
+
+            <div class="disclaimer">
+                <strong>Risk Uyarısı:</strong> Kripto para yatırımları yüksek risk içerir. Bu makalede sunulan analizler yatırım tavsiyesi niteliğinde değildir. Yatırım kararlarınız tamamen size aittir. Kaybetmeyi göze alamayacağınız parayla yatırım yapmayın.
+            </div>
         </div>
     </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>CryptoSignal AI</h4>
+                <p style="color: #9ca3af; font-size: 0.9rem;">AI destekli kripto para analiz platformu</p>
+            </div>
+            <div class="footer-section">
+                <h4>Sayfalar</h4>
+                <ul>
+                    <li><a href="/">Ana Sayfa</a></li>
+                    <li><a href="/blog-bitcoin-2025.html">Blog</a></li>
+                    <li><a href="/about.html">Hakkımızda</a></li>
+                    <li><a href="/contact.html">İletişim</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Yasal</h4>
+                <ul>
+                    <li><a href="/privacy-policy.html">Gizlilik Politikası</a></li>
+                    <li><a href="/terms.html">Kullanım Şartları</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>İletişim</h4>
+                <p style="color: #9ca3af; font-size: 0.9rem;">
+                    contact@cryptosignal.ai<br>
+                    support@cryptosignal.ai
+                </p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            &copy; 2025 CryptoSignal AI. Tüm hakları saklıdır.
+        </div>
+    </footer>
 </body>
 </html>

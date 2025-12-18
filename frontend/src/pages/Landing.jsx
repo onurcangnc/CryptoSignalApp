@@ -406,8 +406,8 @@ const Landing = ({ onGetStarted, setLang, lang }) => {
             <div>
               <h4 className="text-white font-bold mb-4">{text.footer_legal}</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">{text.footer_privacy}</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">{text.footer_terms}</a></li>
+                <li><a href="/privacy-policy.html" className="text-gray-400 hover:text-white transition-colors text-sm">{text.footer_privacy}</a></li>
+                <li><a href="/terms.html" className="text-gray-400 hover:text-white transition-colors text-sm">{text.footer_terms}</a></li>
               </ul>
             </div>
 

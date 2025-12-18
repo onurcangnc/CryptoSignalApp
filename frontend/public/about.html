@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CryptoSignal AI Hakkında - Yapay zeka destekli kripto para analiz platformumuzun hikayesi, misyonu ve vizyonu.">
+    <meta name="keywords" content="hakkımızda, about, cryptosignal, kripto analiz, yapay zeka, AI trading">
+    <link rel="canonical" href="https://pipelinetest.com.tr/about.html">
+    <title>Hakkımızda | CryptoSignal AI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            line-height: 1.8;
+            min-height: 100vh;
+        }
+        nav {
+            background: rgba(26, 26, 46, 0.95);
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid rgba(251, 191, 36, 0.2);
+        }
+        nav .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            color: #fbbf24;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        .nav-links {
+            display: flex;
+            gap: 25px;
+            list-style: none;
+        }
+        .nav-links a {
+            color: #9ca3af;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+        .nav-links a:hover { color: #fbbf24; }
+        .container { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+        header { margin-bottom: 40px; text-align: center; }
+        h1 { font-size: 2.5rem; color: #fbbf24; margin-bottom: 10px; }
+        .subtitle { color: #9ca3af; font-size: 1.1rem; margin-bottom: 30px; }
+        .content { background: rgba(31, 41, 55, 0.5); padding: 40px; border-radius: 12px; }
+        h2 { color: #fbbf24; margin-top: 30px; margin-bottom: 15px; font-size: 1.4rem; }
+        p { margin-bottom: 15px; }
+        ul { margin-left: 20px; margin-bottom: 15px; }
+        li { margin-bottom: 8px; }
+        .highlight-box { background: rgba(251, 191, 36, 0.1); border-left: 4px solid #fbbf24; padding: 20px; margin: 25px 0; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .stat-card {
+            background: rgba(31, 41, 55, 0.7);
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid rgba(251, 191, 36, 0.2);
+        }
+        .stat-card .number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #fbbf24;
+            margin-bottom: 5px;
+        }
+        .stat-card .label {
+            color: #9ca3af;
+            font-size: 0.9rem;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .feature-card {
+            background: rgba(31, 41, 55, 0.7);
+            padding: 25px;
+            border-radius: 12px;
+            border-left: 3px solid #60a5fa;
+        }
+        .feature-card h3 {
+            color: #60a5fa;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .feature-card p {
+            color: #9ca3af;
+            font-size: 0.95rem;
+            margin: 0;
+        }
+        .mission-box {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(96, 165, 250, 0.1) 100%);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            padding: 30px;
+            border-radius: 12px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        .mission-box h3 {
+            color: #fbbf24;
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+        }
+        .mission-box p {
+            font-size: 1.1rem;
+            color: #e0e0e0;
+            margin: 0;
+        }
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .tech-tag {
+            background: rgba(96, 165, 250, 0.2);
+            color: #60a5fa;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        footer {
+            background: rgba(26, 26, 46, 0.95);
+            padding: 40px 20px;
+            margin-top: 60px;
+            border-top: 1px solid rgba(251, 191, 36, 0.2);
+        }
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+        }
+        .footer-section h4 { color: #fbbf24; margin-bottom: 15px; }
+        .footer-section ul { list-style: none; margin: 0; }
+        .footer-section a { color: #9ca3af; text-decoration: none; font-size: 0.9rem; }
+        .footer-section a:hover { color: #fbbf24; }
+        .footer-bottom {
+            max-width: 1200px;
+            margin: 30px auto 0;
+            padding-top: 20px;
+            border-top: 1px solid rgba(156, 163, 175, 0.2);
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+        .disclaimer {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 30px 0;
+            font-size: 0.85rem;
+            color: #fca5a5;
+        }
+        .cta-section {
+            text-align: center;
+            margin: 40px 0 20px;
+        }
+        .cta-button {
+            display: inline-block;
+            background: #fbbf24;
+            color: #1a1a2e;
+            padding: 15px 40px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+        }
+        .cta-button:hover {
+            background: #f59e0b;
+            transform: translateY(-2px);
+        }
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            h1 { font-size: 1.8rem; }
+            .content { padding: 20px; }
+            .stat-card .number { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="container" style="max-width: 1200px; padding: 0 20px;">
+            <a href="/" class="logo">CryptoSignal AI</a>
+            <ul class="nav-links">
+                <li><a href="/">Ana Sayfa</a></li>
+                <li><a href="/blog-bitcoin-2025.html">Blog</a></li>
+                <li><a href="/about.html">Hakkımızda</a></li>
+                <li><a href="/contact.html">İletişim</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header>
+            <h1>Hakkımızda</h1>
+            <p class="subtitle">Yapay zeka ile kripto para yatırımlarını daha akıllı hale getiriyoruz</p>
+        </header>
+
+        <div class="content">
+            <div class="mission-box">
+                <h3>Misyonumuz</h3>
+                <p>Herkesin erişebileceği, yapay zeka destekli kripto para analiz araçları sunarak, yatırımcıların bilinçli kararlar almasına yardımcı olmak.</p>
+            </div>
+
+            <h2>Biz Kimiz?</h2>
+            <p>CryptoSignal AI, 2024 yılında kurulan ve yapay zeka teknolojilerini kripto para analiziyle birleştiren yenilikçi bir platformdur. Amacımız, karmaşık piyasa verilerini anlaşılır sinyallere dönüştürerek yatırımcılara değer katmaktır.</p>
+
+            <p>Ekibimiz, finans teknolojileri, yapay zeka ve blockchain alanlarında uzman profesyonellerden oluşmaktadır. Birlikte, kripto para yatırımcılarının daha bilinçli kararlar almasına yardımcı olan araçlar geliştiriyoruz.</p>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="number">200+</div>
+                    <div class="label">Takip Edilen Coin</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">7/24</div>
+                    <div class="label">Piyasa Analizi</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">AI</div>
+                    <div class="label">Destekli Sinyaller</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">%100</div>
+                    <div class="label">Şeffaflık</div>
+                </div>
+            </div>
+
+            <h2>Ne Sunuyoruz?</h2>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>🤖 AI Destekli Analizler</h3>
+                    <p>Gelişmiş makine öğrenimi modelleri ile teknik ve temel analiz. GPT-4 ve Claude destekli derin piyasa değerlendirmeleri.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3>📊 Gerçek Zamanlı Sinyaller</h3>
+                    <p>AL, SAT, BEKLE sinyalleri ile yatırım fırsatlarını kaçırmayın. Her sinyal güvenilirlik skoru ile birlikte.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3>📈 Portföy Takibi</h3>
+                    <p>Tüm kripto varlıklarınızı tek panelden izleyin. Kar/zarar analizi, çeşitlendirme önerileri.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3>🔔 Fiyat Uyarıları</h3>
+                    <p>Belirlediğiniz hedef fiyatlara ulaşıldığında anında bildirim alın.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3>📰 Haber Analizi</h3>
+                    <p>Kripto haberlerinin AI destekli sentiment analizi. Piyasayı etkileyebilecek gelişmeleri kaçırmayın.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3>📚 Eğitim İçerikleri</h3>
+                    <p>Teknik analiz, risk yönetimi ve yatırım stratejileri hakkında kapsamlı rehberler.</p>
+                </div>
+            </div>
+
+            <h2>Teknolojimiz</h2>
+            <p>En son teknolojileri kullanarak güvenilir ve hızlı bir platform sunuyoruz:</p>
+
+            <div class="tech-stack">
+                <span class="tech-tag">Python</span>
+                <span class="tech-tag">React</span>
+                <span class="tech-tag">FastAPI</span>
+                <span class="tech-tag">TensorFlow</span>
+                <span class="tech-tag">GPT-4</span>
+                <span class="tech-tag">Claude AI</span>
+                <span class="tech-tag">Redis</span>
+                <span class="tech-tag">PostgreSQL</span>
+                <span class="tech-tag">WebSocket</span>
+                <span class="tech-tag">CoinGecko API</span>
+            </div>
+
+            <div class="highlight-box">
+                <h3 style="color: #fbbf24; margin-bottom: 10px;">Şeffaflık İlkemiz</h3>
+                <p style="margin: 0;">Sinyal performansımızı açıkça paylaşıyoruz. Başarılı ve başarısız sinyallerimizi, kar/zarar oranlarımızı platform üzerinden takip edebilirsiniz. Gerçekçi beklentiler için geçmiş performans verilerimiz her zaman erişilebilir.</p>
+            </div>
+
+            <h2>Değerlerimiz</h2>
+            <ul>
+                <li><strong>Şeffaflık:</strong> Tüm sinyal performanslarımızı açıkça paylaşırız</li>
+                <li><strong>Eğitim:</strong> Kullanıcılarımızın bilinçli yatırımcılar olmasını destekleriz</li>
+                <li><strong>Güvenlik:</strong> Verilerinizi en yüksek standartlarla koruruz</li>
+                <li><strong>Sürekli Gelişim:</strong> AI modellerimizi sürekli iyileştiririz</li>
+                <li><strong>Erişilebilirlik:</strong> Herkesin kaliteli analize erişebilmesini sağlarız</li>
+            </ul>
+
+            <h2>Vizyonumuz</h2>
+            <p>Kripto para yatırımcıları için dünyanın en güvenilir AI destekli analiz platformu olmak. Teknoloji ve finans arasındaki köprüyü kurarak, herkesin bilinçli yatırım yapabilmesine olanak sağlamak.</p>
+
+            <div class="cta-section">
+                <a href="/" class="cta-button">Hemen Ücretsiz Başla</a>
+            </div>
+
+            <div class="disclaimer">
+                <strong>Risk Uyarısı:</strong> Kripto para yatırımları yüksek risk içerir. Platformumuzda sunulan AI analizleri ve sinyaller yatırım tavsiyesi niteliğinde değildir. Geçmiş performans gelecek sonuçları garanti etmez. Yatırım yapmadan önce kendi araştırmanızı yapın ve kaybetmeyi göze alamayacağınız parayla yatırım yapmayın.
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>CryptoSignal AI</h4>
+                <p style="color: #9ca3af; font-size: 0.9rem;">AI destekli kripto para analiz platformu</p>
+            </div>
+            <div class="footer-section">
+                <h4>Sayfalar</h4>
+                <ul>
+                    <li><a href="/">Ana Sayfa</a></li>
+                    <li><a href="/blog-bitcoin-2025.html">Blog</a></li>
+                    <li><a href="/about.html">Hakkımızda</a></li>
+                    <li><a href="/contact.html">İletişim</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Yasal</h4>
+                <ul>
+                    <li><a href="/privacy-policy.html">Gizlilik Politikası</a></li>
+                    <li><a href="/terms.html">Kullanım Şartları</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>İletişim</h4>
+                <p style="color: #9ca3af; font-size: 0.9rem;">
+                    contact@cryptosignal.ai<br>
+                    support@cryptosignal.ai
+                </p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            &copy; 2025 CryptoSignal AI. Tüm hakları saklıdır.
+        </div>
+    </footer>
+</body>
+</html>
