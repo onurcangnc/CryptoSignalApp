@@ -307,13 +307,49 @@ const Signals = ({ t, lang }) => {
                     <span className="text-2xl">{getSignalIcon(signal)}</span>
                     <div>
                       <h3 className="font-bold text-gray-900 dark:text-white">{symbol}</h3>
-                      <p className="text-sm text-gray-500">{formatPrice(price)}</p>
+                      <p className="text-sm text-gray-500">💰 {formatPrice(price)}'den al</p>
                     </div>
                   </div>
                   <span className={`px-3 py-1 rounded-full text-white font-bold text-sm ${getSignalColor(signal)}`}>
-                    {getSignalText(signal)}
+                    {getSignalText(signal)} {data.timeframe_label ? `(${data.timeframe_label})` : ''}
                   </span>
                 </div>
+
+                {/* Exit Strategy - sadece AL/SAT sinyalleri için */}
+                {data.take_profit && data.stop_loss && !signal.toUpperCase().includes('BEKLE') && signal.toUpperCase() !== 'HOLD' && (
+                  <div className="mb-3 p-3 bg-gradient-to-r from-green-50 to-red-50 dark:from-green-900/20 dark:to-red-900/20 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="space-y-2">
+                      {/* Take Profit */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🟢</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">
+                          {formatPrice(data.take_profit)}'ye çıkarsa SAT
+                          <span className="text-green-600 dark:text-green-400 font-medium ml-1">
+                            (+{data.take_profit_pct?.toFixed(1)}%)
+                          </span>
+                        </span>
+                      </div>
+                      {/* Stop Loss */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🔴</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">
+                          {formatPrice(data.stop_loss)}'e düşerse SAT
+                          <span className="text-red-600 dark:text-red-400 font-medium ml-1">
+                            (-{data.stop_loss_pct?.toFixed(1)}%)
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                    {/* Risk/Reward Badge */}
+                    {data.risk_reward_ratio && (
+                      <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                        <span className="text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded">
+                          R:R {data.risk_reward_ratio}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Confidence - Multi-Factor */}
                 <div className="mb-3">

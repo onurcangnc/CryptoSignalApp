@@ -47,6 +47,41 @@ const SignalModal = ({ signal, onClose, t, lang }) => {
             </div>
           </div>
 
+          {/* Exit Strategy */}
+          {signal.take_profit && signal.stop_loss && (
+            <div className="bg-gradient-to-r from-green-500/10 to-red-500/10 rounded-xl p-4 border border-gray-700/50">
+              <p className="text-gray-400 text-sm mb-3">🎯 Çıkış Stratejisi</p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🟢</span>
+                    <span className="text-gray-300">Kâr Al (Take Profit)</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-green-400 font-bold">{formatPrice(signal.take_profit)}</p>
+                    <p className="text-green-400/70 text-xs">+{signal.take_profit_pct?.toFixed(1)}%</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🔴</span>
+                    <span className="text-gray-300">Zarar Kes (Stop Loss)</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-red-400 font-bold">{formatPrice(signal.stop_loss)}</p>
+                    <p className="text-red-400/70 text-xs">-{signal.stop_loss_pct?.toFixed(1)}%</p>
+                  </div>
+                </div>
+                {signal.risk_reward_ratio && (
+                  <div className="pt-2 border-t border-gray-700 flex justify-between items-center">
+                    <span className="text-gray-500 text-sm">Risk/Reward Oranı</span>
+                    <span className="text-blue-400 font-bold">{signal.risk_reward_ratio}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Confidence & Risk */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-gray-800/50 rounded-xl p-4 text-center">
