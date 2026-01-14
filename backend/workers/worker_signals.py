@@ -30,7 +30,7 @@ import sys
 # Parent path ekle
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services.analysis_service import AnalysisService
+from services.analysis_service import AnalysisService, get_market_regime
 from database import save_signal_track
 from config import SKIP_SIGNAL_COINS, STABLECOINS, WRAPPED_TOKENS
 
@@ -479,11 +479,17 @@ def generate_signals_for_coin(
     # Futures
     futures = futures_data.get(symbol, {}) if futures_data else None
 
+    # Market Regime hesapla (v3.0)
+    btc_7d_change = prices_data.get("BTC", {}).get("change_7d", 0) if prices_data else 0
+    fear_greed = get_fear_greed_value()
+    market_regime = get_market_regime(btc_7d_change, fear_greed)
+
     # Sinyal üret
     signal_result = analysis_service.generate_signal(
         technical=technical,
         futures=futures,
-        news_sentiment=news_sentiment
+        news_sentiment=news_sentiment,
+        market_regime=market_regime
     )
 
     # Risk seviyesi

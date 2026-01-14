@@ -1,24 +1,131 @@
 # -*- coding: utf-8 -*-
 """
-CryptoSignal - Analysis Service v2.1
+CryptoSignal - Analysis Service v3.0
 ====================================
-ATR-based Exit Strategy + Multi-factor Confidence System
+Major Fixes:
+- TRUE ATR calculation with OHLCV data
+- Market Regime aware signal generation
+- Dynamic RSI thresholds based on market conditions
+- Trend override rules to prevent counter-trend signals
+- Lowered base confidence for better accuracy
 
-v2.1 Güncellemeler:
-- ATR (Average True Range) hesaplama
-- Dinamik Stop-Loss / Take-Profit
-- Risk:Reward ratio kontrolü (minimum 1:2)
-- Trailing Stop desteği
-- Confidence-based exit multipliers
+v3.0 Changes:
+- Fixed ATR: Now uses proper High/Low/Close data
+- Market Regime: BULL/BEAR/NEUTRAL detection
+- Dynamic thresholds: RSI adapts to market conditions
+- Trend Override: Don't SELL in bull market just because RSI > 70
 """
 
 import json
 import httpx
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Tuple
 from datetime import datetime, timedelta
 
 from database import redis_client
 from config import STABLECOINS, MEGA_CAP_COINS, LARGE_CAP_COINS, HIGH_RISK_COINS
+
+
+# ============================================
+# SHARED MULTIPLIER FUNCTIONS (Used by backtest too)
+# ============================================
+
+def get_confidence_multipliers(confidence: int) -> Tuple[float, float]:
+    """
+    Get SL/TP multipliers based on confidence level.
+    SHARED between analysis_service and backtest_engine.
+    """
+    if confidence >= 80:
+        return 1.8, 2.5  # High confidence: wider SL, closer TP
+    elif confidence >= 60:
+        return 2.0, 2.2
+    elif confidence >= 40:
+        return 2.5, 2.0
+    else:
+        return 2.5, 2.0
+
+
+def get_category_adjustments(category: str) -> Tuple[float, float]:
+    """
+    Get category-based SL/TP adjustment multipliers.
+    SHARED between analysis_service and backtest_engine.
+    """
+    if category == "MEGA_CAP":
+        return 0.8, 0.9  # Tighter for stable coins
+    elif category == "HIGH_RISK":
+        return 1.3, 1.2  # Wider for volatile coins
+    return 1.0, 1.0
+
+
+def get_timeframe_multipliers(timeframe: str) -> Tuple[float, float, str]:
+    """
+    Get timeframe-based multipliers.
+    SHARED between analysis_service and backtest_engine.
+    """
+    multipliers = {
+        "1d": (1.0, 1.0, "1 Günlük"),
+        "1w": (1.8, 1.8, "1 Haftalık"),
+        "1m": (3.0, 3.0, "1 Aylık"),
+        "3m": (4.5, 4.5, "3 Aylık"),
+        "6m": (6.0, 6.0, "6 Aylık"),
+        "1y": (8.0, 8.0, "1 Yıllık"),
+    }
+    return multipliers.get(timeframe, (1.0, 1.0, "1 Günlük"))
+
+
+# ============================================
+# MARKET REGIME DETECTION
+# ============================================
+
+def get_market_regime(btc_change_7d: float = 0, fear_greed: int = 50) -> str:
+    """
+    Detect current market regime based on BTC performance and Fear & Greed.
+
+    Returns:
+        "BULL" - Strong uptrend, RSI can stay elevated
+        "BEAR" - Strong downtrend, RSI can stay depressed
+        "NEUTRAL" - Ranging market, use standard thresholds
+    """
+    if btc_change_7d > 5 and fear_greed > 40:
+        return "BULL"
+    elif btc_change_7d < -5 and fear_greed < 40:
+        return "BEAR"
+    return "NEUTRAL"
+
+
+def get_dynamic_rsi_thresholds(market_regime: str) -> Dict[str, int]:
+    """
+    Get RSI thresholds adjusted for market regime.
+
+    In BULL markets: RSI can stay 70-85 for weeks, don't sell early
+    In BEAR markets: RSI can stay 15-30 for weeks, don't buy early
+    """
+    if market_regime == "BULL":
+        return {
+            "extreme_overbought": 85,  # Only sell above 85
+            "overbought": 80,          # Mild sell signal
+            "neutral_high": 65,        # No signal
+            "neutral_low": 40,         # No signal
+            "oversold": 35,            # Mild buy signal
+            "extreme_oversold": 25     # Strong buy signal
+        }
+    elif market_regime == "BEAR":
+        return {
+            "extreme_overbought": 65,  # Sell above 65 in bear market
+            "overbought": 55,          # Mild sell signal
+            "neutral_high": 45,        # No signal
+            "neutral_low": 30,         # No signal
+            "oversold": 25,            # Mild buy signal
+            "extreme_oversold": 15     # Strong buy signal
+        }
+    else:  # NEUTRAL
+        return {
+            "extreme_overbought": 75,
+            "overbought": 70,
+            "neutral_high": 55,
+            "neutral_low": 45,
+            "oversold": 30,
+            "extreme_oversold": 25
+        }
 
 # CoinGecko ID mapping
 COINGECKO_IDS = {
@@ -40,10 +147,116 @@ historical_cache_time: Dict[str, datetime] = {}
 
 
 class AnalysisService:
-    """Teknik analiz servisi"""
-    
+    """Teknik analiz servisi - v3.0"""
+
     def __init__(self):
         self.cache_duration = 3600  # 1 saat
+        self.ohlcv_cache: Dict[str, List[Dict]] = {}
+        self.ohlcv_cache_time: Dict[str, datetime] = {}
+
+    # ============================================
+    # OHLCV DATA FETCHING (NEW in v3.0)
+    # ============================================
+
+    async def fetch_ohlcv_data(self, symbol: str, days: int = 90) -> List[Dict]:
+        """
+        Fetch OHLCV (Open, High, Low, Close, Volume) data from Binance.
+        Required for accurate ATR calculation.
+        """
+        cache_key = f"{symbol}_{days}"
+        if cache_key in self.ohlcv_cache:
+            cache_age = (datetime.utcnow() - self.ohlcv_cache_time.get(cache_key, datetime.min)).total_seconds()
+            if cache_age < self.cache_duration:
+                return self.ohlcv_cache[cache_key]
+
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get(
+                    "https://api.binance.com/api/v3/klines",
+                    params={
+                        "symbol": f"{symbol}USDT",
+                        "interval": "1d",
+                        "limit": min(days, 365)
+                    }
+                )
+                if resp.status_code == 200:
+                    raw_klines = resp.json()
+                    ohlcv = [
+                        {
+                            "timestamp": k[0],
+                            "open": float(k[1]),
+                            "high": float(k[2]),
+                            "low": float(k[3]),
+                            "close": float(k[4]),
+                            "volume": float(k[5])
+                        }
+                        for k in raw_klines
+                    ]
+                    self.ohlcv_cache[cache_key] = ohlcv
+                    self.ohlcv_cache_time[cache_key] = datetime.utcnow()
+                    return ohlcv
+        except Exception as e:
+            print(f"[Analysis] OHLCV fetch error for {symbol}: {e}")
+
+        return []
+
+    def calc_true_atr(self, ohlcv: List[Dict], period: int = 14) -> Tuple[Optional[float], Optional[float]]:
+        """
+        Calculate TRUE ATR using High/Low/Close data.
+
+        True Range = max(
+            High - Low,
+            |High - Previous Close|,
+            |Low - Previous Close|
+        )
+        ATR = SMA of True Range over 'period' days
+        """
+        if len(ohlcv) < period + 1:
+            return None, None
+
+        true_ranges = []
+        for i in range(1, len(ohlcv)):
+            high = ohlcv[i]["high"]
+            low = ohlcv[i]["low"]
+            prev_close = ohlcv[i-1]["close"]
+
+            tr = max(
+                high - low,
+                abs(high - prev_close),
+                abs(low - prev_close)
+            )
+            true_ranges.append(tr)
+
+        if len(true_ranges) < period:
+            return None, None
+
+        # SMA of last 'period' true ranges
+        atr = sum(true_ranges[-period:]) / period
+        current_price = ohlcv[-1]["close"]
+        atr_percent = (atr / current_price * 100) if current_price > 0 else 0
+
+        return round(atr, 6), round(atr_percent, 2)
+
+    def calculate_indicators_with_ohlcv(self, ohlcv: List[Dict]) -> Dict:
+        """
+        Calculate technical indicators using OHLCV data for accurate ATR.
+        """
+        if not ohlcv or len(ohlcv) < 30:
+            return {}
+
+        # Convert to prices list for existing indicator functions
+        prices = [[candle["timestamp"], candle["close"]] for candle in ohlcv]
+
+        # Calculate standard indicators
+        result = self._calculate_indicators(prices, [])
+
+        # Override ATR with TRUE ATR calculation
+        true_atr, true_atr_pct = self.calc_true_atr(ohlcv)
+        if true_atr is not None:
+            result["volatility"]["atr"] = true_atr
+            result["volatility"]["atr_percent"] = true_atr_pct
+
+        return result
     
     async def fetch_historical_data(self, symbol: str) -> Optional[Dict]:
         """CoinGecko'dan tarihsel veri çek"""
@@ -173,24 +386,40 @@ class AnalysisService:
             return None
         
         # ============================================
-        # ATR HESAPLAMA (YENİ!) - v2.1
+        # ATR HESAPLAMA - v3.0 (FIXED!)
         # ============================================
         def calc_atr(period=14):
-            """Average True Range hesapla"""
+            """
+            Average True Range calculation.
+
+            NOTE: This version works with close-only data by estimating
+            the true range. For accurate ATR, use calc_true_atr() with OHLCV data.
+
+            Estimation method: Use price changes with volatility adjustment
+            """
             if len(prices) < period + 1:
                 return None, None
-            
-            true_ranges = []
-            for i in range(-period, 0):
-                current = prices[i][1]
-                prev = prices[i-1][1]
-                price_change = abs(current - prev)
-                estimated_range = max(price_change * 1.5, current * 0.02)
-                true_ranges.append(estimated_range)
-            
-            atr = sum(true_ranges) / period
-            atr_percent = (atr / current_price * 100) if current_price > 0 else 0
-            
+
+            # Calculate daily returns for volatility estimation
+            returns = []
+            for i in range(-period - 5, 0):
+                if i - 1 >= -len(prices):
+                    prev_price = prices[i-1][1]
+                    curr_price = prices[i][1]
+                    if prev_price > 0:
+                        daily_return = abs(curr_price - prev_price) / prev_price
+                        returns.append(daily_return)
+
+            if not returns:
+                return None, None
+
+            # Use average daily range as ATR proxy
+            avg_daily_range = sum(returns) / len(returns)
+
+            # ATR = average daily range * current price
+            atr = avg_daily_range * current_price
+            atr_percent = avg_daily_range * 100
+
             return atr, atr_percent
         
         # Calculate all indicators
@@ -411,41 +640,74 @@ class AnalysisService:
             "timeframe_label": tf_mult["label"]
         }
     
-    def generate_signal(self, technical: Dict, futures: Dict = None, news_sentiment: Dict = None) -> Dict:
-        """Sinyal üret - Multi-Factor Confidence System"""
+    def generate_signal(
+        self,
+        technical: Dict,
+        futures: Dict = None,
+        news_sentiment: Dict = None,
+        market_regime: str = "NEUTRAL"
+    ) -> Dict:
+        """
+        Generate trading signal with Market Regime awareness.
+
+        v3.0 Changes:
+        - Dynamic RSI thresholds based on market regime
+        - Trend override rule: Don't SELL in bull market just because RSI > 70
+        - Better factor weighting
+        """
         score = 0
         reasons = []
         factor_directions = []
 
-        # 1. RSI ANALİZİ
+        # Get dynamic RSI thresholds based on market regime
+        rsi_thresholds = get_dynamic_rsi_thresholds(market_regime)
+        trend = technical.get("trend", "NEUTRAL")
+
+        # 1. RSI ANALİZİ - WITH DYNAMIC THRESHOLDS
         rsi = technical.get("rsi")
         rsi_direction = "NEUTRAL"
         if rsi:
-            if rsi < 30:
+            # TREND OVERRIDE RULE (v3.0)
+            # In bull market with bullish trend, don't sell just because RSI > 70
+            if market_regime == "BULL" and trend == "BULLISH" and 70 < rsi < 85:
+                # RSI is elevated but trend is strong - HOLD, don't SELL
+                rsi_direction = "NEUTRAL"
+                reasons.append(f"RSI yüksek ({rsi:.0f}) ama trend güçlü")
+            elif market_regime == "BEAR" and trend == "BEARISH" and 15 < rsi < 30:
+                # RSI is low but trend is bearish - HOLD, don't BUY
+                rsi_direction = "NEUTRAL"
+                reasons.append(f"RSI düşük ({rsi:.0f}) ama trend zayıf")
+            elif rsi <= rsi_thresholds["extreme_oversold"]:
                 score += 25
                 reasons.append(f"RSI aşırı satım ({rsi:.0f})")
                 rsi_direction = "BUY"
-            elif rsi > 70:
+            elif rsi <= rsi_thresholds["oversold"]:
+                score += 15
+                rsi_direction = "BUY"
+            elif rsi >= rsi_thresholds["extreme_overbought"]:
                 score -= 25
                 reasons.append(f"RSI aşırı alım ({rsi:.0f})")
                 rsi_direction = "SELL"
-            elif rsi < 45:
-                score += 10
+            elif rsi >= rsi_thresholds["overbought"]:
+                score -= 15
+                rsi_direction = "SELL"
+            elif rsi < rsi_thresholds["neutral_low"]:
+                score += 8
                 rsi_direction = "BUY"
-            elif rsi > 55:
-                score -= 10
+            elif rsi > rsi_thresholds["neutral_high"]:
+                score -= 8
                 rsi_direction = "SELL"
         factor_directions.append(rsi_direction)
 
-        # 2. TREND ANALİZİ
-        trend = technical.get("trend")
+        # 2. TREND ANALİZİ - INCREASED WEIGHT IN v3.0
         trend_direction = "NEUTRAL"
+        trend_weight = 25 if market_regime != "NEUTRAL" else 20  # More weight in trending markets
         if trend == "BULLISH":
-            score += 20
+            score += trend_weight
             reasons.append("Yükseliş trendi")
             trend_direction = "BUY"
         elif trend == "BEARISH":
-            score -= 20
+            score -= trend_weight
             reasons.append("Düşüş trendi")
             trend_direction = "SELL"
         factor_directions.append(trend_direction)
@@ -520,17 +782,27 @@ class AnalysisService:
                     reasons.append(f"Haberler olumsuz ({news_count} haber)")
         factor_directions.append(news_direction)
 
-        # SİNYAL BELİRLEME
-        if score >= 25:
+        # SİNYAL BELİRLEME - WITH TREND CONFIRMATION (v3.0)
+        # Require higher score in counter-trend situations
+        min_score_for_buy = 5
+        min_score_for_sell = -5
+
+        # Counter-trend signals need higher conviction
+        if market_regime == "BEAR" and score > 0:
+            min_score_for_buy = 15  # Need stronger signal to buy in bear market
+        if market_regime == "BULL" and score < 0:
+            min_score_for_sell = -15  # Need stronger signal to sell in bull market
+
+        if score >= 30:
             signal = "STRONG_BUY"
             signal_tr = "GÜÇLÜ AL"
-        elif score >= 5:
+        elif score >= min_score_for_buy:
             signal = "BUY"
             signal_tr = "AL"
-        elif score <= -25:
+        elif score <= -30:
             signal = "STRONG_SELL"
             signal_tr = "GÜÇLÜ SAT"
-        elif score <= -5:
+        elif score <= min_score_for_sell:
             signal = "SELL"
             signal_tr = "SAT"
         else:
@@ -542,6 +814,9 @@ class AnalysisService:
             technical=technical,
             score=score
         )
+
+        # Add market regime to details
+        confidence_details["market_regime"] = market_regime
 
         return {
             "signal": signal,
@@ -559,7 +834,14 @@ class AnalysisService:
         technical: Dict,
         score: int
     ) -> tuple:
-        """Multi-factor confidence hesaplama"""
+        """
+        Multi-factor confidence calculation - v3.0
+
+        Changes:
+        - Lowered base confidence from 30 to 10
+        - Return 0 confidence if insufficient data (< 3 indicators)
+        - More weight on data quality
+        """
         non_neutral = [d for d in factor_directions if d != "NEUTRAL"]
         if non_neutral:
             buy_count = sum(1 for d in non_neutral if d == "BUY")
@@ -568,8 +850,8 @@ class AnalysisService:
             alignment_ratio = dominant_count / len(non_neutral)
             alignment_score = alignment_ratio * 30
         else:
-            alignment_score = 15
-            alignment_ratio = 0.5
+            alignment_score = 0  # Changed from 15 - no alignment if all neutral
+            alignment_ratio = 0
 
         indicators = [
             technical.get("rsi"),
@@ -579,7 +861,24 @@ class AnalysisService:
             technical.get("ma", {}).get("ma_50"),
         ]
         available_count = sum(1 for i in indicators if i is not None)
-        data_quality_score = (available_count / len(indicators)) * 20
+
+        # CRITICAL: Return 0 confidence if insufficient data
+        if available_count < 3:
+            return 0, {
+                "alignment": 0,
+                "alignment_ratio": 0,
+                "data_quality": 0,
+                "volatility_penalty": 0,
+                "signal_strength": 0,
+                "trend_clarity": 0,
+                "factors_buy": sum(1 for d in factor_directions if d == "BUY"),
+                "factors_sell": sum(1 for d in factor_directions if d == "SELL"),
+                "factors_neutral": sum(1 for d in factor_directions if d == "NEUTRAL"),
+                "insufficient_data": True
+            }
+
+        # Increased data quality weight (was 20, now 25)
+        data_quality_score = (available_count / len(indicators)) * 25
 
         vol_7d = technical.get("volatility", {}).get("7d", 0) or 0
         if vol_7d > 8:
@@ -593,11 +892,11 @@ class AnalysisService:
 
         abs_score = abs(score)
         if abs_score >= 40:
-            signal_strength_score = 20
+            signal_strength_score = 25  # Increased from 20
         elif abs_score >= 30:
-            signal_strength_score = 15
+            signal_strength_score = 20  # Increased from 15
         elif abs_score >= 20:
-            signal_strength_score = 10
+            signal_strength_score = 12
         elif abs_score >= 10:
             signal_strength_score = 5
         else:
@@ -619,7 +918,8 @@ class AnalysisService:
         else:
             trend_clarity_score = 0
 
-        base_confidence = 30
+        # LOWERED BASE CONFIDENCE (was 30, now 10)
+        base_confidence = 10
         total_confidence = (
             base_confidence +
             alignment_score +
@@ -641,6 +941,7 @@ class AnalysisService:
             "factors_buy": sum(1 for d in factor_directions if d == "BUY"),
             "factors_sell": sum(1 for d in factor_directions if d == "SELL"),
             "factors_neutral": sum(1 for d in factor_directions if d == "NEUTRAL"),
+            "insufficient_data": False
         }
 
         return confidence, details
