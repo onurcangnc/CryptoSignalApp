@@ -88,7 +88,7 @@ analysis_service = AnalysisService()
 
 # Quality Gate settings
 MIN_CONFIDENCE_FOR_TRADE = 60
-MIN_FACTOR_ALIGNMENT = 3
+MIN_FACTOR_ALIGNMENT = 2
 HIGH_RISK_CONFIDENCE_PENALTY = 10
 
 def get_fear_greed_value() -> int:
