@@ -300,16 +300,16 @@ class AnalysisService:
         tf_tp_mult = tf_mult["tp"]
         timeframe_label = tf_mult["label"]
         
-        # CONFIDENCE-BASED MULTIPLIERS
+        # CONFIDENCE-BASED MULTIPLIERS (Optimized for better TP/SL ratio)
         if confidence >= 80:
-            sl_multiplier = 1.2
-            tp_multiplier = 3.5
+            sl_multiplier = 1.8  # Wider SL (was 1.2)
+            tp_multiplier = 2.5  # Closer TP (was 3.5)
         elif confidence >= 60:
-            sl_multiplier = 1.5
-            tp_multiplier = 3.0
+            sl_multiplier = 2.0  # (was 1.5)
+            tp_multiplier = 2.2  # (was 3.0)
         elif confidence >= 40:
-            sl_multiplier = 2.0
-            tp_multiplier = 2.5
+            sl_multiplier = 2.5  # (was 2.0)
+            tp_multiplier = 2.0  # (was 2.5)
         else:
             sl_multiplier = 2.5
             tp_multiplier = 2.0
