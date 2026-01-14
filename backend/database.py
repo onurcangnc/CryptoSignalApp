@@ -744,8 +744,15 @@ def get_portfolio_simulations(user_id: str, limit: int = 10) -> List[Dict]:
 
 def save_signal_track(symbol: str, signal: str, signal_tr: str, confidence: int,
                       entry_price: float, target_price: float, stop_loss: float,
-                      timeframe: str) -> str:
-    """Sinyal kaydı oluştur"""
+                      timeframe: str,
+                      # v2.1 yeni parametreler
+                      trailing_stop: float = None,
+                      trailing_stop_pct: float = 2.0,
+                      risk_reward_ratio: str = None,
+                      stop_loss_pct: float = None,
+                      take_profit_pct: float = None
+                      ) -> str:
+    """Sinyal kaydı oluştur (v2.1 - Exit Strategy destegi)"""
     from uuid import uuid4
     signal_id = str(uuid4())
 
@@ -753,6 +760,7 @@ def save_signal_track(symbol: str, signal: str, signal_tr: str, confidence: int,
     check_days = {
         "1d": 1,
         "1w": 7,
+        "1m": 30,
         "3m": 90,
         "6m": 180,
         "1y": 365
@@ -761,12 +769,20 @@ def save_signal_track(symbol: str, signal: str, signal_tr: str, confidence: int,
     check_date = (datetime.utcnow() + timedelta(days=days)).isoformat()
 
     with get_db() as conn:
-        conn.execute(
-            "INSERT INTO signal_tracking VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL)",
-            (signal_id, symbol, signal, signal_tr, confidence, entry_price,
-             target_price, stop_loss, timeframe, datetime.utcnow().isoformat(),
-             check_date)
-        )
+        conn.execute("""
+            INSERT INTO signal_tracking (
+                id, symbol, signal, signal_tr, confidence, entry_price,
+                target_price, stop_loss, timeframe, created_at, check_date,
+                trailing_stop, trailing_stop_pct, highest_price, lowest_price,
+                risk_reward_ratio, stop_loss_pct, take_profit_pct
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            signal_id, symbol, signal, signal_tr, confidence, entry_price,
+            target_price, stop_loss, timeframe, datetime.utcnow().isoformat(),
+            check_date,
+            trailing_stop, trailing_stop_pct, entry_price, entry_price,
+            risk_reward_ratio, stop_loss_pct, take_profit_pct
+        ))
         conn.commit()
 
     return signal_id

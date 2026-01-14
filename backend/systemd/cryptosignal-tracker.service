@@ -1,0 +1,28 @@
+[Unit]
+Description=CryptoSignal Signal Tracker v1.0
+Documentation=https://github.com/cryptosignal
+After=network.target redis-server.service
+Wants=redis-server.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/cryptosignal-app/backend
+Environment="PATH=/opt/cryptosignal-app/backend/venv/bin:/usr/local/bin:/usr/bin"
+EnvironmentFile=/opt/cryptosignal-app/backend/.env
+ExecStart=/opt/cryptosignal-app/backend/venv/bin/python3 signal_tracker.py
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cryptosignal-tracker
+
+# Resource limits
+MemoryMax=256M
+CPUQuota=25%
+
+[Install]
+WantedBy=multi-user.target

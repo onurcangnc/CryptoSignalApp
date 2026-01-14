@@ -418,6 +418,28 @@ Manages inter-object communication from a central point.
 - **Mobile Responsive**: Compatible with all devices
 - **Dark Mode**: Modern glassmorphism design
 
+#### 🤖 AI Coins Support (NEW)
+- 37 dedicated AI/ML project coins tracked
+- Includes: FET, RNDR, TAO, AGIX, OCEAN, WLD, AKT, ARKM, and more
+- Purple badge identification in UI
+- Dedicated AI filter in signals page
+- Priority processing regardless of market cap
+
+#### 🎯 Exit Strategy System (NEW)
+- ATR-based Stop-Loss and Take-Profit calculation
+- Dynamic R:R ratio (minimum 1:2 guaranteed)
+- Timeframe-specific multipliers (1d, 1w, 1m, 3m, 6m, 1y)
+- Category-based adjustments (MEGA_CAP, HIGH_RISK)
+- Visual TP/SL display on signal cards
+
+#### 🛡️ Quality Gate v3 (NEW)
+- **Market Regime Filter**: Blocks BUY signals when BTC drops >3%
+- **Fear & Greed Guard**: Blocks BUY when index < 25
+- **Crowding Protection**: Blocks trades when L/S ratio is extreme (>2.5 or <0.4)
+- **Funding Rate Check**: Monitors perpetual funding rates
+- **Top 50 Signal Filter**: Only highest quality signals pass through
+- Confidence minimum: 60%, Factor alignment minimum: 3
+
 ### 📈 Trading Tools
 
 #### 7. **DCA Calculator**
@@ -427,26 +449,34 @@ Manages inter-object communication from a central point.
 - Visual chart result analysis
 - ROI and average cost calculation
 
-#### 8. **Backtesting Engine**
+#### 8. **Exit Strategy Backtest Engine (NEW)**
+- ATR-based TP/SL strategy testing
+- Historical performance simulation (7-90 days)
+- Success rate, profit factor, max drawdown metrics
+- Timeframe comparison (1d vs 1w vs 1m)
+- Best/worst trade analysis
+- Trade history with entry/exit details
+
+#### 9. **Classic Backtesting Engine**
 - Strategy testing tool (RSI, MACD, Moving Average)
 - Customizable parameters
 - Win rate, profit factor, max drawdown metrics
 - Visual chart results
 - Entry/exit point analysis
 
-#### 9. **Watchlist Management**
+#### 10. **Watchlist Management**
 - Personal coin tracking list
 - Quick access to favorites
 - Real-time price updates
 - Customizable view
 
-#### 10. **Price Alerts**
+#### 11. **Price Alerts**
 - Custom price notifications
 - Above/below threshold conditions
 - Multiple alert support
 - Telegram integration
 
-#### 11. **TradingView Integration**
+#### 12. **TradingView Integration**
 - Professional chart widget
 - 100+ technical indicators
 - Multiple timeframe support
@@ -858,7 +888,7 @@ Response:
 
 ### Backtesting
 
-#### Run Backtest
+#### Run Classic Backtest
 ```http
 POST /api/backtesting/run
 Content-Type: application/json
@@ -886,6 +916,49 @@ Response:
   "max_drawdown": 12.5,
   "final_capital": 14250,
   "trades": [...]
+}
+```
+
+#### Exit Strategy Backtest (NEW)
+```http
+GET /api/backtest/quick?symbol=BTC&days=30&timeframe=1d
+
+Response:
+{
+  "symbol": "BTC",
+  "timeframe": "1d",
+  "summary": {
+    "total_signals": 30,
+    "successful": 17,
+    "failed": 10,
+    "expired": 3,
+    "success_rate": 56.7,
+    "profit_factor": 2.08,
+    "total_return_pct": 14.47,
+    "max_drawdown": 8.5,
+    "avg_hold_hours": 48,
+    "avg_profit": 5.2,
+    "avg_loss": -2.8,
+    "best_trade": {...},
+    "worst_trade": {...}
+  },
+  "results": [...]
+}
+```
+
+#### Timeframe Comparison (NEW)
+```http
+GET /api/backtest/compare?symbol=ETH&days=30
+
+Response:
+{
+  "symbol": "ETH",
+  "best_timeframe": "1w",
+  "comparison": {
+    "1d": {"success_rate": 54.2, "total_return_pct": 8.5, "profit_factor": 1.6},
+    "1w": {"success_rate": 62.1, "total_return_pct": 15.3, "profit_factor": 2.2},
+    "1m": {"success_rate": 58.0, "total_return_pct": 12.1, "profit_factor": 1.9}
+  }
 }
 ```
 

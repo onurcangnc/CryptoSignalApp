@@ -1,34 +1,21 @@
 #!/usr/bin/env python3
 """
-CryptoSignal - Signal Generator Worker v1.6
+CryptoSignal - Signal Generator Worker v2.0
 ===========================================
-Multi-Factor Confidence System ile sinyal uretimi
+ATR-based Exit Strategy + Signal Tracking entegrasyonu
 
-v1.6 Guncellemeler:
-- ADD: Stablecoin/Wrapped token filtresi (SKIP_SIGNAL_COINS)
-- ADD: Yetersiz veri gostergesi (data_quality flag)
-- ADD: Skipped coins log istatistikleri
+v2.0 Güncellemeler:
+- Exit Strategy hesaplama ve kaydetme
+- Signal Tracker entegrasyonu (her 60 saniyede çıkış kontrolü)
+- Dinamik SL/TP (ATR bazlı)
+- Trailing Stop desteği
+- Minimum 1:2 R:R zorunluluğu
 
-v1.5 Guncellemeler:
-- FIX: _has_indicators() MACD float olarak kabul ediyor
-- FIX: MA kontrolu ma_20/ma_50 anahtarlari ile
-
-v1.4 Guncellemeler:
-- ADD: Multi-source historical data (Binance -> CMC -> CoinGecko)
-- FIX: _has_indicators() technical dict aliyor
-
-v1.2-1.3 Guncellemeler:
-- ADD: Quality Gate - Dusuk kaliteli trade sinyallerini filtrele
-- ADD: signal_raw ve quality_gate metadata
-
-Ozellikler:
-- analysis_service.generate_signal() kullanimi
-- News sentiment entegrasyonu
-- Futures data entegrasyonu
-- 6 farkli timeframe destegi
-- Signal tracking (DB'ye kayit)
-- Quality Gate (trade kalite filtresi)
+v1.6 Özellikler (korundu):
+- Multi-factor confidence system
+- Quality Gate filtresi
 - Stablecoin/Wrapped token filtresi
+- Multi-source historical data
 """
 
 import asyncio
@@ -59,32 +46,119 @@ r = redis.Redis(
 
 # Config
 UPDATE_INTERVAL = 300  # 5 dakika
+SIGNAL_CHECK_INTERVAL = 60  # 60 saniye (exit kontrolü)
 TIMEFRAMES = ["1d", "1w", "1m", "3m", "6m", "1y"]
 TIMEFRAME_LABELS = {
-    "1d": "1 Gun",
-    "1w": "1 Hafta",
-    "1m": "1 Ay",
-    "3m": "3 Ay",
-    "6m": "6 Ay",
-    "1y": "1 Yil"
+    "1d": "1 Günlük",
+    "1w": "1 Haftalık",
+    "1m": "1 Aylık",
+    "3m": "3 Aylık",
+    "6m": "6 Aylık",
+    "1y": "1 Yıllık"
 }
 
 # CoinGecko rate limiting
-COINGECKO_SEMAPHORE = asyncio.Semaphore(3)  # Max 3 concurrent requests
-COINGECKO_BACKOFF = 5  # Seconds between batches
+COINGECKO_SEMAPHORE = asyncio.Semaphore(3)
+COINGECKO_BACKOFF = 5
+
+# AI/Yapay Zeka Coinleri - Her zaman işlenecek
+AI_COINS = {
+    # Büyük AI Projeleri
+    "FET", "RNDR", "TAO", "AGIX", "OCEAN", "WLD", "AKT", "ARKM",
+    # Orta Ölçekli AI
+    "AIOZ", "NMR", "ALI", "RSS3", "CGPT", "PAAL", "OLAS", "0X0",
+    # AI Altyapı
+    "PRIME", "NEURAL", "MASA", "ATOR", "GPU", "RLC", "PHB", "NFP",
+    # AI Gaming/Metaverse
+    "MYRIA", "VOXEL", "OORT", "VANAR", "TRAC", "ORAI",
+    # Yeni AI Projeleri
+    "IO", "ATH", "ZK", "NOS", "VIRTUALS", "SPEC", "GRIFFAIN"
+}
+
+# Minimum filtreler
+MIN_MARKET_CAP = 10_000_000      # $10M minimum
+MIN_VOLUME_24H = 1_000_000       # $1M minimum hacim
+
+# İşlenecek coin limitleri
+COIN_PROCESS_LIMIT = 500         # TOP 500 coin
+HISTORICAL_DATA_LIMIT = 250      # İlk 250'ye historical data
 
 # Analysis Service instance
 analysis_service = AnalysisService()
 
-# --- Quality Gate (Trade kalitesi filtresi) ---
-# v1.3: Daha dengeli ayarlar (eskisi çok sıkıydı, hiç BUY sinyali üretmiyordu)
-MIN_CONFIDENCE_FOR_TRADE = 35          # %35 altı → BEKLE (eskisi 50)
-MIN_FACTOR_ALIGNMENT = 2               # En az 2/6 faktör uyumlu olmalı (eskisi 3)
-HIGH_RISK_CONFIDENCE_PENALTY = 5       # HIGH risk → +5 threshold (eskisi 10)
+# Quality Gate settings
+MIN_CONFIDENCE_FOR_TRADE = 60
+MIN_FACTOR_ALIGNMENT = 3
+HIGH_RISK_CONFIDENCE_PENALTY = 10
+
+def get_fear_greed_value() -> int:
+    """Redis'ten Fear & Greed degerini al"""
+    try:
+        fg_raw = r.get("fear_greed")
+        if fg_raw:
+            fg_data = json.loads(fg_raw)
+            return fg_data.get("value", 50)
+    except:
+        pass
+    return 50
+
 
 BUY_SIGNALS = {"BUY", "AL", "STRONG_BUY", "GÜÇLÜ AL"}
 SELL_SIGNALS = {"SELL", "SAT", "STRONG_SELL", "GÜÇLÜ SAT"}
 HOLD_SIGNALS = {"HOLD", "BEKLE"}
+
+# Top 50 signal filter
+MAX_ACTIVE_SIGNALS = 50
+
+
+def filter_top_signals(signals: dict, max_count: int = MAX_ACTIVE_SIGNALS) -> dict:
+    """
+    En kaliteli sinyalleri filtrele - sadece AL/SAT sinyallerini say
+    Sıralama: confidence * (1 + alignment/10) * quality_bonus
+    """
+    active_signals = []
+    hold_signals = []
+
+    for symbol, sig in signals.items():
+        signal_type = sig.get("signal", "HOLD")
+        if signal_type in BUY_SIGNALS or signal_type in SELL_SIGNALS:
+            conf = sig.get("confidence", 0)
+            details = sig.get("confidence_details", {})
+            alignment = _extract_alignment(details)
+
+            # Quality score hesapla
+            quality_bonus = 1.0
+            qg = sig.get("quality_gate", {})
+            if qg.get("passed"):
+                quality_bonus = 1.2
+
+            # R:R bonus
+            rr = sig.get("risk_reward_ratio", 0)
+            try:
+                if rr and float(rr) >= 2.0:
+                    quality_bonus *= 1.1
+            except (TypeError, ValueError):
+                pass
+
+            score = conf * (1 + alignment / 10) * quality_bonus
+            active_signals.append((symbol, sig, score))
+        else:
+            hold_signals.append((symbol, sig))
+
+    # En yüksek skorlu sinyalleri al
+    active_signals.sort(key=lambda x: x[2], reverse=True)
+    top_active = active_signals[:max_count]
+
+    # Sonucu oluştur
+    result = {}
+    for symbol, sig, _ in top_active:
+        result[symbol] = sig
+
+    # HOLD sinyallerini de ekle (bunlar zaten işlem önermiyor)
+    for symbol, sig in hold_signals:
+        result[symbol] = sig
+
+    return result
 
 
 def _norm_risk(risk_level: str) -> str:
@@ -102,17 +176,13 @@ def _norm_risk(risk_level: str) -> str:
 
 
 def _extract_alignment(details: dict) -> int:
-    """
-    confidence_details içinden factor uyum sayısını çıkarır.
-    Hem int alanlar hem list alanlar için tolerant.
-    """
+    """confidence_details içinden factor uyum sayısını çıkarır"""
     if not isinstance(details, dict):
         return 0
 
     fb = details.get("factors_buy")
     fs = details.get("factors_sell")
 
-    # int olarak geliyorsa
     if isinstance(fb, (int, float)) or isinstance(fs, (int, float)):
         try:
             fb = int(fb or 0)
@@ -121,7 +191,6 @@ def _extract_alignment(details: dict) -> int:
         except Exception:
             return 0
 
-    # list olarak geliyorsa
     if isinstance(fb, list) or isinstance(fs, list):
         fb_n = len(fb or [])
         fs_n = len(fs or [])
@@ -131,21 +200,13 @@ def _extract_alignment(details: dict) -> int:
 
 
 def _has_indicators(technical: dict) -> bool:
-    """
-    İndikatör verisi var mı kontrol et.
-    RSI, MACD, MA gibi temel indikatörler yoksa False döner.
-
-    Args:
-        technical: Technical indicators dict from calculate_indicators()
-    """
+    """İndikatör verisi var mı kontrol et"""
     if not technical:
         return False
 
-    # Check RSI (should be a number 0-100)
     rsi = technical.get("rsi")
     has_rsi = rsi is not None and rsi not in ("N/A", "na", "NA", "") and isinstance(rsi, (int, float))
 
-    # Check MACD (can be dict with histogram OR just a number)
     macd = technical.get("macd")
     if macd is not None:
         if isinstance(macd, dict):
@@ -157,55 +218,69 @@ def _has_indicators(technical: dict) -> bool:
     else:
         has_macd = False
 
-    # Check MA (dict with ma_20, ma_50, ma_200 keys)
     ma = technical.get("ma")
     if ma is not None and isinstance(ma, dict):
         has_ma = ma.get("ma_20") is not None or ma.get("ma_50") is not None
     else:
         has_ma = False
 
-    # En az bir geçerli indikatör olmalı
     return has_rsi or has_macd or has_ma
 
 
-def should_emit_signal(analysis: dict, risk_level: str, technical: dict = None) -> tuple:
-    """
-    AL/SAT üretmeden önce kalite kontrolü.
-    Düşük kaliteyi BEKLE'ye çevirir.
-
-    Args:
-        analysis: Signal result from generate_signal()
-        risk_level: Risk level string
-        technical: Technical indicators dict from calculate_indicators()
-
-    Returns:
-        (final_signal, confidence, gate_reason)
-    """
+def should_emit_signal(analysis: dict, risk_level: str, technical: dict = None, market_data: dict = None, futures_data: dict = None) -> tuple:
+    """Geliştirilmiş Quality Gate v3 - Market Regime + Crowding Protection"""
     signal = (analysis.get("signal") or "BEKLE").strip()
     confidence = float(analysis.get("confidence") or 0)
     details = analysis.get("confidence_details") or {}
 
-    # Zaten BEKLE ise
     if signal in HOLD_SIGNALS:
         return "HOLD", confidence, "already_hold"
 
-    # Trade sinyali değilse güvenli tarafta kal
     if signal not in BUY_SIGNALS and signal not in SELL_SIGNALS:
         return "HOLD", confidence, f"unknown_signal_{signal}"
 
-    # İndikatör verisi yoksa trade verme
     if not _has_indicators(technical):
         return "HOLD", confidence, "missing_indicators"
 
-    # Risk seviyesine göre threshold ayarla
+    # MARKET REGIME FILTRESI
+    if market_data:
+        btc_change = market_data.get("btc_change_24h", 0) or 0
+        fear_greed = market_data.get("fear_greed", 50) or 50
+
+        # BTC düşüşteyken AL verme
+        if signal in BUY_SIGNALS and btc_change < -3:
+            return "HOLD", confidence, f"btc_downtrend_{btc_change:.1f}%"
+
+        # Bear market'te AL için ekstra kontrol
+        if signal in BUY_SIGNALS and btc_change < -5 and fear_greed < 30:
+            if confidence < 90:
+                return "HOLD", confidence, "bear_market_blocks_buy"
+
+    # CROWDING PROTECTION
+    if futures_data:
+        ls_ratio = futures_data.get("long_short_ratio", 1.0) or 1.0
+        funding_rate = futures_data.get("funding_rate", 0.0) or 0.0
+
+        # Herkes long'dayken AL verme
+        if signal in BUY_SIGNALS and ls_ratio > 2.5:
+            return "HOLD", confidence, f"crowded_long_{ls_ratio:.2f}"
+
+        # Herkes short'dayken SAT verme
+        if signal in SELL_SIGNALS and ls_ratio < 0.5:
+            return "HOLD", confidence, f"crowded_short_{ls_ratio:.2f}"
+
+        # Yüksek funding rate'de long açma
+        if signal in BUY_SIGNALS and funding_rate > 0.1:
+            return "HOLD", confidence, f"high_funding_{funding_rate:.4f}"
+
+    # CONFIDENCE THRESHOLD
     risk = _norm_risk(risk_level)
     threshold = MIN_CONFIDENCE_FOR_TRADE + (HIGH_RISK_CONFIDENCE_PENALTY if risk == "HIGH" else 0)
 
-    # Confidence kontrolü
     if confidence < threshold:
         return "HOLD", confidence, f"low_confidence_{confidence:.1f}<{threshold}"
 
-    # Faktör uyumu kontrolü
+    # FAKTÖR UYUMU
     alignment = _extract_alignment(details)
     if alignment < MIN_FACTOR_ALIGNMENT:
         return "HOLD", confidence, f"low_alignment_{alignment}<{MIN_FACTOR_ALIGNMENT}"
@@ -213,73 +288,20 @@ def should_emit_signal(analysis: dict, risk_level: str, technical: dict = None) 
     return signal, confidence, "passed"
 
 
-print("[Signal Worker v1.6] Starting with Multi-Source Historical Data + Coin Filters...")
+print("[Signal Worker v2.0] Starting with ATR-based Exit Strategy...")
 print(f"  Update interval: {UPDATE_INTERVAL}s")
+print(f"  Signal check interval: {SIGNAL_CHECK_INTERVAL}s")
 print(f"  Timeframes: {', '.join(TIMEFRAMES)}")
-print(f"  Historical data sources: Binance -> CMC -> CoinGecko (fallback chain)")
 print(f"  Quality Gate: min_conf={MIN_CONFIDENCE_FOR_TRADE}, min_align={MIN_FACTOR_ALIGNMENT}")
-print(f"  Skip filters: {len(SKIP_SIGNAL_COINS)} coins (stablecoins, wrapped tokens)")
+print(f"  Skip filters: {len(SKIP_SIGNAL_COINS)} coins")
+print(f"  AI Coins: {len(AI_COINS)} tracked")
+print(f"  Limits: TOP {COIN_PROCESS_LIMIT} + Historical {HISTORICAL_DATA_LIMIT}")
 
 
-def get_news_sentiment_for_coin(symbol: str, news_db: Dict) -> Optional[Dict]:
-    """
-    Coin icin news sentiment hesapla
+# ============================================
+# HISTORICAL PRICE FETCHERS
+# ============================================
 
-    Returns:
-        Dict with score (-1 to 1) and news_count
-    """
-    if not news_db:
-        return None
-
-    # Son 24 saatteki haberler (FIX: datetime karsilastirmasi)
-    cutoff_dt = datetime.utcnow() - timedelta(hours=24)
-
-    relevant_news = []
-    for news in news_db.values():
-        crawled_str = news.get("crawled_at", "")
-        if not crawled_str:
-            continue
-        try:
-            # ISO format string -> datetime
-            crawled_dt = datetime.fromisoformat(crawled_str.replace("Z", "+00:00"))
-            if crawled_dt.tzinfo:
-                crawled_dt = crawled_dt.replace(tzinfo=None)  # Naive datetime
-            if crawled_dt < cutoff_dt:
-                continue
-        except (ValueError, TypeError):
-            continue  # Invalid date format, skip
-
-        coins = news.get("coins", [])
-        if symbol in coins or "GENERAL" in coins:
-            relevant_news.append(news)
-
-    if not relevant_news:
-        return None
-
-    # Sentiment skorlarini topla
-    total_score = 0
-    for news in relevant_news:
-        sentiment = news.get("sentiment", "neutral")
-        score = news.get("sentiment_score", 0)
-
-        if sentiment == "bullish":
-            total_score += abs(score)
-        elif sentiment == "bearish":
-            total_score -= abs(score)
-
-    # Ortalama al
-    avg_score = total_score / len(relevant_news) if relevant_news else 0
-
-    return {
-        "score": round(avg_score, 3),
-        "news_count": len(relevant_news)
-    }
-
-
-# CoinMarketCap API Key
-CMC_API_KEY = os.getenv("CMC_API_KEY", "9e01b29529e44a97a01ac7d65f035c6c")
-
-# Binance'de USDT paritesi olan coinler
 BINANCE_SYMBOLS = {
     "BTC", "ETH", "BNB", "XRP", "SOL", "ADA", "DOGE", "TRX", "AVAX",
     "DOT", "LINK", "MATIC", "LTC", "BCH", "ATOM", "UNI", "XLM", "ETC",
@@ -293,7 +315,6 @@ BINANCE_SYMBOLS = {
     "WIF", "MEME", "ORDI", "JTO", "ZK", "POL", "ONDO", "MINA"
 }
 
-# CoinGecko ID mapping (fallback için)
 SYMBOL_TO_COINGECKO = {
     "BTC": "bitcoin", "ETH": "ethereum", "BNB": "binancecoin",
     "XRP": "ripple", "SOL": "solana", "ADA": "cardano",
@@ -306,9 +327,11 @@ SYMBOL_TO_COINGECKO = {
     "TON": "the-open-network", "HBAR": "hedera-hashgraph",
 }
 
+CMC_API_KEY = os.getenv("CMC_API_KEY", "")
+
 
 async def fetch_from_binance(symbol: str, days: int) -> List:
-    """Binance Klines API - Öncelikli kaynak"""
+    """Binance Klines API"""
     if symbol not in BINANCE_SYMBOLS:
         return []
 
@@ -331,45 +354,8 @@ async def fetch_from_binance(symbol: str, days: int) -> List:
     return []
 
 
-async def fetch_from_coinmarketcap(symbol: str, days: int) -> List:
-    """CoinMarketCap API - İkinci kaynak"""
-    if not CMC_API_KEY:
-        return []
-
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            # CMC historical quotes endpoint
-            resp = await client.get(
-                "https://pro-api.coinmarketcap.com/v2/cryptocurrency/quotes/historical",
-                headers={"X-CMC_PRO_API_KEY": CMC_API_KEY},
-                params={
-                    "symbol": symbol,
-                    "count": min(days, 365),
-                    "interval": "daily"
-                }
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                quotes = data.get("data", {}).get(symbol, [])
-                if quotes and isinstance(quotes, list) and len(quotes) > 0:
-                    coin_data = quotes[0].get("quotes", [])
-                    prices = []
-                    for q in coin_data:
-                        ts = q.get("timestamp", "")
-                        price = q.get("quote", {}).get("USD", {}).get("close", 0)
-                        if ts and price:
-                            # ISO timestamp to milliseconds
-                            from datetime import datetime
-                            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                            prices.append([int(dt.timestamp() * 1000), float(price)])
-                    return prices
-    except Exception as e:
-        print(f"[CMC] {symbol} error: {e}")
-    return []
-
-
 async def fetch_from_coingecko(symbol: str, days: int) -> List:
-    """CoinGecko API - Son fallback (rate limited)"""
+    """CoinGecko API - Son fallback"""
     coin_id = SYMBOL_TO_COINGECKO.get(symbol)
     if not coin_id:
         return []
@@ -396,24 +382,13 @@ async def fetch_from_coingecko(symbol: str, days: int) -> List:
 
 
 async def fetch_historical_prices(symbol: str, days: int = 90) -> List:
-    """
-    Multi-source historical price data fetcher.
-    Fallback chain: Binance -> CoinMarketCap -> CoinGecko
-
-    Returns:
-        List of [timestamp, price] pairs
-    """
-    # 1. Binance (en hızlı, rate limit yok)
+    """Multi-source historical price fetcher"""
+    # 1. Binance
     prices = await fetch_from_binance(symbol, days)
-    if prices and len(prices) >= 14:  # RSI için minimum 14 gün
-        return prices
-
-    # 2. CoinMarketCap (API key ile)
-    prices = await fetch_from_coinmarketcap(symbol, days)
     if prices and len(prices) >= 14:
         return prices
 
-    # 3. CoinGecko (son fallback, rate limited)
+    # 2. CoinGecko
     prices = await fetch_from_coingecko(symbol, days)
     if prices and len(prices) >= 14:
         return prices
@@ -421,23 +396,74 @@ async def fetch_historical_prices(symbol: str, days: int = 90) -> List:
     return []
 
 
+def get_news_sentiment_for_coin(symbol: str, news_db: Dict) -> Optional[Dict]:
+    """Coin için news sentiment hesapla"""
+    if not news_db:
+        return None
+
+    cutoff_dt = datetime.utcnow() - timedelta(hours=24)
+    relevant_news = []
+    
+    for news in news_db.values():
+        crawled_str = news.get("crawled_at", "")
+        if not crawled_str:
+            continue
+        try:
+            crawled_dt = datetime.fromisoformat(crawled_str.replace("Z", "+00:00"))
+            if crawled_dt.tzinfo:
+                crawled_dt = crawled_dt.replace(tzinfo=None)
+            if crawled_dt < cutoff_dt:
+                continue
+        except (ValueError, TypeError):
+            continue
+
+        coins = news.get("coins", [])
+        if symbol in coins or "GENERAL" in coins:
+            relevant_news.append(news)
+
+    if not relevant_news:
+        return None
+
+    total_score = 0
+    for news in relevant_news:
+        sentiment = news.get("sentiment", "neutral")
+        score = news.get("sentiment_score", 0)
+
+        if sentiment == "bullish":
+            total_score += abs(score)
+        elif sentiment == "bearish":
+            total_score -= abs(score)
+
+    avg_score = total_score / len(relevant_news) if relevant_news else 0
+
+    return {
+        "score": round(avg_score, 3),
+        "news_count": len(relevant_news)
+    }
+
+
+# ============================================
+# SIGNAL GENERATION WITH EXIT STRATEGY
+# ============================================
+
 def generate_signals_for_coin(
     symbol: str,
     price_data: Dict,
     futures_data: Dict,
     news_sentiment: Optional[Dict],
-    historical_prices: List
+    historical_prices: List,
+    prices_data: Dict = None
 ) -> Dict:
     """
-    Tek coin icin tum timeframe'lerde sinyal uret
+    Tek coin için tüm timeframe'lerde sinyal üret
+    + EXIT STRATEGY HESAPLAMA (v2.0)
     """
     results = {}
 
-    # Technical indicators hesapla (public wrapper kullan)
+    # Technical indicators
     if historical_prices:
         technical = analysis_service.calculate_indicators(historical_prices)
     else:
-        # Fallback - sadece current price
         technical = {
             "current_price": price_data.get("price", 0),
             "change_24h": price_data.get("change_24h", 0),
@@ -450,27 +476,33 @@ def generate_signals_for_coin(
             "trend": "NEUTRAL"
         }
 
-    # Futures bilgisi
+    # Futures
     futures = futures_data.get(symbol, {}) if futures_data else None
 
-    # Sinyal uret
+    # Sinyal üret
     signal_result = analysis_service.generate_signal(
         technical=technical,
         futures=futures,
         news_sentiment=news_sentiment
     )
 
-    # Risk seviyesi hesapla
+    # Risk seviyesi
     risk_result = analysis_service.calculate_risk_level(symbol, technical)
 
-    # --- Apply Quality Gate ---
+    # Quality Gate
     raw_signal = signal_result["signal"]
     raw_signal_tr = signal_result["signal_tr"]
     risk_level = risk_result["level"]
 
-    final_signal, final_conf, gate_reason = should_emit_signal(signal_result, risk_level, technical)
+    # Market Regime data for Quality Gate v3
+    market_data = {
+        "btc_change_24h": prices_data.get("BTC", {}).get("change_24h", 0) if prices_data else 0,
+        "fear_greed": get_fear_greed_value()
+    }
+    coin_futures = futures_data.get(symbol, {}) if futures_data else None
 
-    # Signal TR'yi de güncelle
+    final_signal, final_conf, gate_reason = should_emit_signal(signal_result, risk_level, technical, market_data, coin_futures)
+
     signal_tr_map = {
         "HOLD": "BEKLE",
         "BUY": "AL",
@@ -480,17 +512,16 @@ def generate_signals_for_coin(
     }
     final_signal_tr = signal_tr_map.get(final_signal, raw_signal_tr)
 
-    # Yetersiz veri kontrolü - confidence 45 ve tüm faktörler neutral ise
+    # Yetersiz veri kontrolü
     conf_details = signal_result.get("confidence_details", {})
     factors_neutral = conf_details.get("factors_neutral", 0)
     data_quality = conf_details.get("data_quality", 0)
     has_insufficient_data = (
         signal_result["confidence"] <= 45 and
-        factors_neutral >= 5 and  # 6 faktörden 5+ neutral
-        data_quality <= 4  # Veri kalitesi düşük
+        factors_neutral >= 5 and
+        data_quality <= 4
     )
 
-    # Quality gate metadata
     quality_gate = {
         "passed": gate_reason == "passed",
         "reason": gate_reason,
@@ -500,11 +531,18 @@ def generate_signals_for_coin(
         "insufficient_data": has_insufficient_data,
     }
 
-    # Sonucu hazirla
+    # ============================================
+    # EXIT STRATEGY HESAPLAMA (YENİ v2.0)
+    # Her timeframe için AYRI hesapla
+    # ============================================
+    current_price = price_data.get("price", 0)
+    category = risk_result.get("category", "ALT")
+
+    # Sonucu hazırla - BASE (exit_strategy hariç)
     base_result = {
         "symbol": symbol,
         "name": price_data.get("name", symbol),
-        "price": price_data.get("price", 0),
+        "price": current_price,
         "change_24h": price_data.get("change_24h", 0),
         "change_7d": price_data.get("change_7d", 0),
         "change_30d": price_data.get("change_30d", 0),
@@ -530,23 +568,39 @@ def generate_signals_for_coin(
         "updated_at": datetime.utcnow().isoformat()
     }
 
-    # Tum timeframe'ler icin ayni sinyal (su anlik basit implementasyon)
-    # TODO: Timeframe'e gore farkli periyotlar kullan
+    # Her timeframe için AYRI exit strategy
     for tf in TIMEFRAMES:
-        results[tf] = base_result.copy()
-        results[tf]["timeframe"] = tf
-        results[tf]["timeframe_label"] = TIMEFRAME_LABELS.get(tf, tf)
+        tf_result = base_result.copy()
+        tf_result["timeframe"] = tf
+        tf_result["timeframe_label"] = TIMEFRAME_LABELS.get(tf, tf)
+        
+        # Bu timeframe için exit strategy hesapla
+        exit_strategy = analysis_service.calculate_exit_strategy(
+            current_price=current_price,
+            signal=final_signal,
+            confidence=signal_result["confidence"],
+            technical=technical,
+            category=category,
+            timeframe=tf
+        )
+        
+        tf_result["exit_strategy"] = exit_strategy
+        tf_result["stop_loss"] = exit_strategy.get("stop_loss")
+        tf_result["take_profit"] = exit_strategy.get("take_profit")
+        tf_result["trailing_stop"] = exit_strategy.get("trailing_stop")
+        tf_result["risk_reward_ratio"] = exit_strategy.get("risk_reward_ratio")
+        tf_result["stop_loss_pct"] = exit_strategy.get("stop_loss_pct")
+        tf_result["take_profit_pct"] = exit_strategy.get("take_profit_pct")
+        
+        results[tf] = tf_result
 
     return results
 
 
 async def generate_all_signals():
-    """
-    Tum coinler icin sinyal uret
-    """
+    """Tüm coinler için sinyal üret"""
     print(f"\n[Signals] Generating at {datetime.utcnow().strftime('%H:%M:%S')}")
 
-    # Redis'ten verileri al
     prices_raw = r.get("prices_data")
     futures_raw = r.get("futures_data")
     news_raw = r.get("news_db")
@@ -561,22 +615,36 @@ async def generate_all_signals():
 
     print(f"  Coins: {len(prices_data)} | News: {len(news_db)} | Futures: {len(futures_data)}")
 
-    # Market cap'e gore sirala
     sorted_coins = sorted(
         prices_data.items(),
         key=lambda x: x[1].get("market_cap", 0) or 0,
         reverse=True
     )
 
-    # Top 200 coin icin sinyal uret
     all_signals = {tf: {"signals": {}, "stats": {}, "risk_stats": {}, "count": 0} for tf in TIMEFRAMES}
     processed = 0
-    skipped_coins = {"stablecoin": 0, "wrapped": 0, "other": 0}
+    skipped_coins = {"stablecoin": 0, "wrapped": 0, "other": 0, "low_mcap": 0}
     quality_gate_stats = {"passed": 0, "blocked": 0, "reasons": {}}
 
-    for symbol, price_data in sorted_coins[:200]:
+    # AI coinlerini + TOP 500'ü birleştir
+    coins_to_process = set()
+
+    # 1. TOP 500 coin (market cap sıralı)
+    for symbol, _ in sorted_coins[:COIN_PROCESS_LIMIT]:
+        coins_to_process.add(symbol)
+
+    # 2. AI coinlerini ekle (market cap'ten bağımsız)
+    for symbol, _ in sorted_coins:
+        if symbol in AI_COINS:
+            coins_to_process.add(symbol)
+
+    # sorted_coins'den işlenecek coinleri filtrele (sırayı koru)
+    filtered_coins = [(s, d) for s, d in sorted_coins if s in coins_to_process]
+
+    print(f"  Processing: {len(filtered_coins)} coins (TOP {COIN_PROCESS_LIMIT} + {len(AI_COINS)} AI coins)")
+
+    for symbol, price_data in filtered_coins:
         try:
-            # Skip stablecoins, wrapped tokens, and other non-tradeable assets
             if symbol in SKIP_SIGNAL_COINS:
                 if symbol in STABLECOINS:
                     skipped_coins["stablecoin"] += 1
@@ -586,52 +654,51 @@ async def generate_all_signals():
                     skipped_coins["other"] += 1
                 continue
 
-            # News sentiment
+            # Minimum market cap/volume filtresi (AI coinleri hariç)
+            if symbol not in AI_COINS:
+                mcap = price_data.get("market_cap", 0) or 0
+                vol = price_data.get("volume_24h", 0) or 0
+                if mcap < MIN_MARKET_CAP or vol < MIN_VOLUME_24H:
+                    skipped_coins["low_mcap"] += 1
+                    continue
+
             news_sentiment = get_news_sentiment_for_coin(symbol, news_db)
 
-            # Historical prices - Binance API (yüksek rate limit, top 100 için)
             historical_prices = []
-            if processed < 100:
+            if processed < HISTORICAL_DATA_LIMIT:
                 historical_prices = await fetch_historical_prices(symbol, days=90)
-                # Binance rate limit yüksek, minimal bekleme yeterli
                 if historical_prices and processed % 20 == 0:
                     await asyncio.sleep(0.2)
 
-            # Sinyalleri uret
             coin_signals = generate_signals_for_coin(
                 symbol=symbol,
                 price_data=price_data,
                 futures_data=futures_data,
                 news_sentiment=news_sentiment,
-                historical_prices=historical_prices
+                historical_prices=historical_prices,
+                prices_data=prices_data
             )
 
-            # Timeframe'lere ekle
             for tf, signal_data in coin_signals.items():
                 all_signals[tf]["signals"][symbol] = signal_data
 
-                # Stats guncelle
                 sig = signal_data["signal"]
                 if sig not in all_signals[tf]["stats"]:
                     all_signals[tf]["stats"][sig] = 0
                 all_signals[tf]["stats"][sig] += 1
 
-                # Risk stats guncelle
                 risk = signal_data["risk_level"]
                 if risk not in all_signals[tf]["risk_stats"]:
                     all_signals[tf]["risk_stats"][risk] = 0
                 all_signals[tf]["risk_stats"][risk] += 1
 
-                # Quality gate stats (sadece 1d için)
                 if tf == "1d":
                     qg = signal_data.get("quality_gate", {})
                     if qg.get("passed"):
                         quality_gate_stats["passed"] += 1
                     elif qg.get("original_signal") in BUY_SIGNALS | SELL_SIGNALS:
-                        # Sadece trade sinyali engellenenleri say
                         quality_gate_stats["blocked"] += 1
                         reason = qg.get("reason", "unknown")
-                        # Reason'ı kategorize et
                         if reason.startswith("low_confidence"):
                             reason_key = "low_confidence"
                         elif reason.startswith("low_alignment"):
@@ -649,19 +716,23 @@ async def generate_all_signals():
             print(f"  Error {symbol}: {e}")
             continue
 
-    # Count'lari guncelle
+    # Top 50 sinyal filtreleme - her timeframe için
     for tf in TIMEFRAMES:
+        original_count = len(all_signals[tf]["signals"])
+        all_signals[tf]["signals"] = filter_top_signals(all_signals[tf]["signals"])
+        filtered_count = len([s for s in all_signals[tf]["signals"].values()
+                             if s.get("signal") in BUY_SIGNALS or s.get("signal") in SELL_SIGNALS])
         all_signals[tf]["count"] = len(all_signals[tf]["signals"])
+        if tf == "1d":
+            print(f"  [Filter] Active signals: {original_count} -> Top {filtered_count} (max {MAX_ACTIVE_SIGNALS})")
 
-    # Redis'e yaz
     r.set("signals_all_timeframes", json.dumps(all_signals))
-    r.set("signals_data", json.dumps(all_signals["1d"]["signals"]))  # Legacy uyumluluk
+    r.set("signals_data", json.dumps(all_signals["1d"]["signals"]))
     r.set("signals_stats", json.dumps(all_signals["1d"]["stats"]))
     r.set("signals_risk_stats", json.dumps(all_signals["1d"]["risk_stats"]))
     r.set("signals_updated", datetime.utcnow().isoformat())
     r.set("signals_count", str(processed))
 
-    # Stats yazdir
     stats_1d = all_signals["1d"]["stats"]
     buy_count = stats_1d.get("BUY", 0) + stats_1d.get("STRONG_BUY", 0)
     sell_count = stats_1d.get("SELL", 0) + stats_1d.get("STRONG_SELL", 0)
@@ -669,30 +740,22 @@ async def generate_all_signals():
 
     print(f"  Total: {processed} | BUY: {buy_count} | HOLD: {hold_count} | SELL: {sell_count}")
 
-    # Skipped coins stats
     total_skipped = sum(skipped_coins.values())
-    print(f"  [Skipped] Total: {total_skipped} | Stablecoin: {skipped_coins['stablecoin']} | Wrapped: {skipped_coins['wrapped']} | Other: {skipped_coins['other']}")
+    print(f"  [Skipped] Total: {total_skipped} | Stablecoin: {skipped_coins['stablecoin']} | Wrapped: {skipped_coins['wrapped']} | LowMcap: {skipped_coins['low_mcap']}")
 
-    # Quality Gate stats
     qg_passed = quality_gate_stats["passed"]
     qg_blocked = quality_gate_stats["blocked"]
-    qg_reasons = quality_gate_stats["reasons"]
-    print(f"  [QualityGate] Passed: {qg_passed} | Blocked: {qg_blocked} | Reasons: {qg_reasons}")
+    print(f"  [QualityGate] Passed: {qg_passed} | Blocked: {qg_blocked}")
 
-    # Signal tracking icin kayit - Tum coinler (akilli filtreleme ile)
+    # Signal tracking
     await track_all_signals(all_signals["1d"]["signals"])
 
 
 async def track_all_signals(signals_1d: Dict):
     """
-    Tum coinler icin akilli sinyal tracking
-
-    Filtreleme kurallari:
-    1. HOLD sinyalleri hariç
-    2. Confidence < 30 hariç (dusuk guvenli sinyaller)
-    3. Son 24 saat icinde ayni coin+sinyal duplicate hariç
+    Tüm coinler için akıllı sinyal tracking
+    + EXIT STRATEGY KAYDETME (v2.0)
     """
-    # Son 24 saat icindeki kayitlari kontrol icin
     recent_tracks = set()
     try:
         from database import get_db
@@ -714,49 +777,51 @@ async def track_all_signals(signals_1d: Dict):
         if not signal_data:
             continue
 
-        # 1. HOLD sinyalleri hariç
         signal = signal_data.get("signal", "")
         if signal not in ["STRONG_BUY", "BUY", "SELL", "STRONG_SELL"]:
             skipped_hold += 1
             continue
 
-        # 2. Dusuk confidence hariç
         confidence = signal_data.get("confidence", 0)
         if confidence < 30:
             skipped_low_conf += 1
             continue
 
-        # 3. Duplicate kontrolu (son 24 saat)
         if (symbol, signal) in recent_tracks:
             skipped_duplicate += 1
             continue
 
         try:
-            # Target ve stop-loss hesapla (basit ATR bazli)
             price = signal_data.get("price", 0)
-            volatility = signal_data.get("technical", {}).get("volatility", {})
-            atr_pct = volatility.get("atr_percent", 3.0)  # Default %3
+            
+            # EXIT STRATEGY'DEN SL/TP AL (v2.0)
+            exit_strategy = signal_data.get("exit_strategy", {})
+            target_price = exit_strategy.get("take_profit", price * 1.06)
+            stop_loss = exit_strategy.get("stop_loss", price * 0.97)
+            trailing_stop = exit_strategy.get("trailing_stop")
+            trailing_stop_pct = exit_strategy.get("trailing_stop_pct", 2.0)
+            risk_reward_ratio = exit_strategy.get("risk_reward_ratio", "1:2.0")
+            stop_loss_pct = exit_strategy.get("stop_loss_pct", 3.0)
+            take_profit_pct = exit_strategy.get("take_profit_pct", 6.0)
 
-            if signal in ["STRONG_BUY", "BUY"]:
-                target_price = price * (1 + atr_pct / 100 * 2)  # 2x ATR profit
-                stop_loss = price * (1 - atr_pct / 100)  # 1x ATR stop
-            else:  # SELL
-                target_price = price * (1 - atr_pct / 100 * 2)
-                stop_loss = price * (1 + atr_pct / 100)
-
-            # Signal TR mapping
             signal_tr = signal_data.get("signal_tr", signal)
 
-            # DB'ye kaydet (check_date fonksiyon içinde hesaplanıyor)
+            # DB'ye kaydet (v2.0 - ekstra kolonlar)
             save_signal_track(
                 symbol=symbol,
                 signal=signal,
                 signal_tr=signal_tr,
-                confidence=int(signal_data.get("confidence", 0)),
+                confidence=int(confidence),
                 entry_price=price,
                 target_price=target_price,
                 stop_loss=stop_loss,
-                timeframe="1d"
+                timeframe="1d",
+                # v2.0 ek parametreler
+                trailing_stop=trailing_stop,
+                trailing_stop_pct=trailing_stop_pct,
+                risk_reward_ratio=risk_reward_ratio,
+                stop_loss_pct=stop_loss_pct,
+                take_profit_pct=take_profit_pct
             )
             tracked += 1
 
@@ -764,22 +829,58 @@ async def track_all_signals(signals_1d: Dict):
             print(f"  [Track] Error {symbol}: {e}")
             continue
 
-    # Detayli log
     print(f"  [Track] Saved: {tracked} | Skip: HOLD={skipped_hold}, LowConf={skipped_low_conf}, Dup={skipped_duplicate}")
+
+
+# ============================================
+# SIGNAL CHECKER INTEGRATION (v2.0)
+# ============================================
+
+async def check_exit_conditions():
+    """
+    Açık pozisyonları kontrol et ve çıkış koşullarını değerlendir
+    Her 60 saniyede çalışır
+    """
+    try:
+        from signal_tracker import signal_tracker
+        stats = signal_tracker.process_all_signals()
+        
+        if stats["closed"] > 0:
+            print(f"  [Exit Check] Closed: {stats['closed']} | SL: {stats['exits'].get('STOP_LOSS', 0)} | TP: {stats['exits'].get('TAKE_PROFIT', 0)}")
+    except ImportError:
+        # signal_tracker.py henüz yok, sessizce geç
+        pass
+    except Exception as e:
+        print(f"  [Exit Check] Error: {e}")
 
 
 async def main():
     """Main loop"""
-    print(f"[Signal Worker] Starting main loop")
+    print(f"[Signal Worker v2.0] Starting main loop")
+
+    last_signal_gen = 0
+    last_exit_check = 0
 
     while True:
         try:
-            await generate_all_signals()
+            now = asyncio.get_event_loop().time()
+
+            # Sinyal üretimi (5 dakikada bir)
+            if now - last_signal_gen >= UPDATE_INTERVAL:
+                await generate_all_signals()
+                last_signal_gen = now
+
+            # Çıkış kontrolü (60 saniyede bir)
+            if now - last_exit_check >= SIGNAL_CHECK_INTERVAL:
+                await check_exit_conditions()
+                last_exit_check = now
+
+            # Kısa uyku
+            await asyncio.sleep(10)
+
         except Exception as e:
             print(f"[Signal Worker] Error: {e}")
-
-        print(f"[Signals] Next update in {UPDATE_INTERVAL}s")
-        await asyncio.sleep(UPDATE_INTERVAL)
+            await asyncio.sleep(30)
 
 
 if __name__ == "__main__":

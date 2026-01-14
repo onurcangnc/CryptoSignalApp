@@ -3,6 +3,15 @@ import api from '../api'
 import { SignalPerformanceGrid } from '../components/SignalPerformance'
 import { SignalsSkeleton, EmptyState, AdBanner, SignalDisclaimer } from '../components/ui'
 
+// AI/Yapay Zeka Coinleri
+const AI_COINS = new Set([
+  "FET", "RNDR", "TAO", "AGIX", "OCEAN", "WLD", "AKT", "ARKM",
+  "AIOZ", "NMR", "ALI", "RSS3", "CGPT", "PAAL", "OLAS", "0X0",
+  "PRIME", "NEURAL", "MASA", "ATOR", "GPU", "RLC", "PHB", "NFP",
+  "MYRIA", "VOXEL", "OORT", "VANAR", "TRAC", "ORAI",
+  "IO", "ATH", "ZK", "NOS", "VIRTUALS", "SPEC", "GRIFFAIN"
+])
+
 const Signals = ({ t, lang }) => {
   const [signals, setSignals] = useState({})
   const [stats, setStats] = useState({ total: 0, buy: 0, sell: 0, hold: 0 })
@@ -64,11 +73,16 @@ const Signals = ({ t, lang }) => {
         
         // Stats'ı API'den al veya hesapla
         if (data.stats) {
+          // AI coin sayısını hesapla
+          const signalsData = data.signals || {}
+          const aiCount = Object.keys(signalsData).filter(sym => AI_COINS.has(sym)).length
+
           setStats({
-            total: data.count || data.total || Object.keys(data.signals || {}).length,
+            total: data.count || data.total || Object.keys(signalsData).length,
             buy: (data.stats.STRONG_BUY || 0) + (data.stats.BUY || 0),
             hold: data.stats.HOLD || 0,
-            sell: (data.stats.STRONG_SELL || 0) + (data.stats.SELL || 0)
+            sell: (data.stats.STRONG_SELL || 0) + (data.stats.SELL || 0),
+            ai: aiCount
           })
         }
         
@@ -150,14 +164,15 @@ const Signals = ({ t, lang }) => {
   const filteredSignals = Object.entries(signals)
     .filter(([symbol, data]) => {
       if (search && !symbol.toLowerCase().includes(search.toLowerCase())) return false
-      
+
       const signal = data.signal_tr || data.signal || ''
       const s = signal.toUpperCase()
-      
+
       if (filter === 'buy' && !s.includes('AL') && s !== 'BUY' && s !== 'STRONG_BUY') return false
       if (filter === 'sell' && !s.includes('SAT') && s !== 'SELL' && s !== 'STRONG_SELL') return false
       if (filter === 'hold' && !s.includes('BEKLE') && s !== 'HOLD') return false
-      
+      if (filter === 'ai' && !AI_COINS.has(symbol)) return false
+
       return true
     })
     .sort((a, b) => {
@@ -224,7 +239,7 @@ const Signals = ({ t, lang }) => {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-5 gap-3">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-3 text-center shadow">
           <div className="text-xl font-bold text-gray-900 dark:text-white">{stats.total}</div>
           <div className="text-xs text-gray-500">Toplam</div>
@@ -240,6 +255,10 @@ const Signals = ({ t, lang }) => {
         <div className="bg-red-50 dark:bg-red-900/30 rounded-xl p-3 text-center shadow">
           <div className="text-xl font-bold text-red-600">{stats.sell}</div>
           <div className="text-xs text-red-600">SAT</div>
+        </div>
+        <div className="bg-purple-50 dark:bg-purple-900/30 rounded-xl p-3 text-center shadow">
+          <div className="text-xl font-bold text-purple-600">{stats.ai || 0}</div>
+          <div className="text-xs text-purple-600">🤖 AI</div>
         </div>
       </div>
 
@@ -263,6 +282,7 @@ const Signals = ({ t, lang }) => {
             { key: 'buy', label: 'AL', color: 'green' },
             { key: 'hold', label: 'BEKLE', color: 'yellow' },
             { key: 'sell', label: 'SAT', color: 'red' },
+            { key: 'ai', label: '🤖 AI', color: 'purple' },
           ].map(f => (
             <button
               key={f.key}
@@ -306,7 +326,14 @@ const Signals = ({ t, lang }) => {
                   <div className="flex items-center gap-2">
                     <span className="text-2xl">{getSignalIcon(signal)}</span>
                     <div>
-                      <h3 className="font-bold text-gray-900 dark:text-white">{symbol}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-gray-900 dark:text-white">{symbol}</h3>
+                        {AI_COINS.has(symbol) && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-bold bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded">
+                            🤖 AI
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-500">💰 {formatPrice(price)}'den al</p>
                     </div>
                   </div>

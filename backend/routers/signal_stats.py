@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-CryptoSignal - Signal Stats Router
-===================================
-Sinyal başarı istatistikleri API
+CryptoSignal - Signal Stats Router v2.1
+=========================================
+Sinyal başarı istatistikleri API + Exit Analysis
+
+v2.1 Yeni endpointler:
+- /api/exit-analysis - Exit reason bazlı performans
+- /api/exit-timeline - Günlük exit timeline
 """
 
 from fastapi import APIRouter, Depends
@@ -11,7 +15,7 @@ import json
 from datetime import datetime, timedelta
 
 from dependencies import get_current_user
-from database import get_signal_success_rate, redis_client
+from database import get_db, get_signal_success_rate, redis_client
 
 router = APIRouter(prefix="/api", tags=["signals"])
 
@@ -188,3 +192,161 @@ async def get_accuracy_by_confidence(user=Depends(get_current_user)):
             "ne kadar örtüştüğünü gösterir."
         )
     }
+
+
+# =============================================================================
+# v2.1 YENİ ENDPOINT: EXIT ANALYSIS
+# =============================================================================
+
+@router.get("/exit-analysis")
+async def get_exit_analysis(
+    days: int = 30,
+    user=Depends(get_current_user)
+):
+    """
+    Exit reason bazlı performans analizi (v2.1)
+
+    Hangi exit reason ile çıkıldı:
+    - STOP_LOSS: Zarar kes ile kapanan
+    - TAKE_PROFIT: Kâr al ile kapanan
+    - TRAILING_STOP: Trailing stop ile kapanan
+    - TIME_EXPIRED: Süre dolduğu için kapanan
+    """
+    cache_key = f"exit_analysis_{days}d"
+    cached = redis_client.get(cache_key)
+    if cached:
+        try:
+            return json.loads(cached)
+        except:
+            pass
+
+    cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
+
+    with get_db() as conn:
+        # Exit reason bazlı istatistikler
+        rows = conn.execute("""
+            SELECT
+                exit_reason,
+                COUNT(*) as total,
+                SUM(CASE WHEN is_successful = 1 THEN 1 ELSE 0 END) as successful,
+                AVG(profit_loss_pct) as avg_pnl,
+                AVG(CASE WHEN is_successful = 1 THEN profit_loss_pct ELSE NULL END) as avg_win,
+                AVG(CASE WHEN is_successful = 0 THEN profit_loss_pct ELSE NULL END) as avg_loss
+            FROM signal_tracking
+            WHERE exit_reason IS NOT NULL
+            AND closed_at >= ?
+            GROUP BY exit_reason
+        """, (cutoff_date,)).fetchall()
+
+        exit_stats = {}
+
+        for row in rows:
+            reason = row["exit_reason"]
+            total = row["total"] or 0
+            successful = row["successful"] or 0
+            avg_pnl = row["avg_pnl"] or 0
+            avg_win = row["avg_win"] or 0
+            avg_loss = row["avg_loss"] or 0
+
+            exit_stats[reason] = {
+                "total": total,
+                "successful": successful,
+                "success_rate": round((successful / total * 100), 1) if total > 0 else 0,
+                "avg_profit_loss": round(avg_pnl, 2),
+                "avg_win": round(avg_win, 2),
+                "avg_loss": round(avg_loss, 2)
+            }
+
+        # Genel özet
+        overall = conn.execute("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN is_successful = 1 THEN 1 ELSE 0 END) as successful,
+                AVG(profit_loss_pct) as avg_pnl
+            FROM signal_tracking
+            WHERE exit_reason IS NOT NULL
+            AND closed_at >= ?
+        """, (cutoff_date,)).fetchone()
+
+    result = {
+        "period_days": days,
+        "total_closed": overall["total"] or 0,
+        "total_successful": overall["successful"] or 0,
+        "overall_success_rate": round(
+            ((overall["successful"] or 0) / (overall["total"] or 1)) * 100, 1
+        ),
+        "overall_avg_pnl": round(overall["avg_pnl"] or 0, 2),
+        "by_exit_reason": exit_stats,
+        "updated_at": datetime.utcnow().isoformat()
+    }
+
+    # Cache'e kaydet (5 dakika)
+    redis_client.setex(cache_key, 300, json.dumps(result))
+
+    return result
+
+
+@router.get("/exit-timeline")
+async def get_exit_timeline(
+    days: int = 30,
+    user=Depends(get_current_user)
+):
+    """
+    Günlük exit istatistikleri timeline (v2.1)
+
+    Son N günün her günü için kapanış istatistikleri
+    """
+    cache_key = f"exit_timeline_{days}d"
+    cached = redis_client.get(cache_key)
+    if cached:
+        try:
+            return json.loads(cached)
+        except:
+            pass
+
+    cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
+
+    with get_db() as conn:
+        rows = conn.execute("""
+            SELECT
+                DATE(closed_at) as date,
+                COUNT(*) as total,
+                SUM(CASE WHEN is_successful = 1 THEN 1 ELSE 0 END) as successful,
+                SUM(CASE WHEN exit_reason = 'STOP_LOSS' THEN 1 ELSE 0 END) as stop_loss,
+                SUM(CASE WHEN exit_reason = 'TAKE_PROFIT' THEN 1 ELSE 0 END) as take_profit,
+                SUM(CASE WHEN exit_reason = 'TRAILING_STOP' THEN 1 ELSE 0 END) as trailing_stop,
+                AVG(profit_loss_pct) as avg_pnl
+            FROM signal_tracking
+            WHERE exit_reason IS NOT NULL
+            AND closed_at >= ?
+            GROUP BY DATE(closed_at)
+            ORDER BY date DESC
+        """, (cutoff_date,)).fetchall()
+
+        timeline = []
+        for row in rows:
+            total = row["total"] or 0
+            successful = row["successful"] or 0
+            timeline.append({
+                "date": row["date"],
+                "total": total,
+                "successful": successful,
+                "success_rate": round((successful / total * 100), 1) if total > 0 else 0,
+                "exits": {
+                    "STOP_LOSS": row["stop_loss"] or 0,
+                    "TAKE_PROFIT": row["take_profit"] or 0,
+                    "TRAILING_STOP": row["trailing_stop"] or 0
+                },
+                "avg_pnl": round(row["avg_pnl"] or 0, 2)
+            })
+
+    result = {
+        "period_days": days,
+        "timeline": timeline,
+        "updated_at": datetime.utcnow().isoformat()
+    }
+
+    # Cache'e kaydet (5 dakika)
+    redis_client.setex(cache_key, 300, json.dumps(result))
+
+    return result

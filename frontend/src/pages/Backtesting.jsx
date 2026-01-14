@@ -7,7 +7,7 @@ import { formatPrice } from '../utils/formatters'
 
 const Backtesting = ({ t, lang }) => {
   // State
-  const [activeTab, setActiveTab] = useState('overview') // overview, history, coins, simulate
+  const [activeTab, setActiveTab] = useState('exitStrategy') // overview, history, coins, simulate, exitStrategy
   const [performance, setPerformance] = useState(null)
   const [history, setHistory] = useState(null)
   const [coinPerformance, setCoinPerformance] = useState(null)
@@ -21,6 +21,17 @@ const Backtesting = ({ t, lang }) => {
   const [simulation, setSimulation] = useState(null)
   const [simLoading, setSimLoading] = useState(false)
 
+  // Exit Strategy Backtest state
+  const [exitBacktest, setExitBacktest] = useState(null)
+  const [exitLoading, setExitLoading] = useState(false)
+  const [exitSymbol, setExitSymbol] = useState('BTC')
+  const [exitDays, setExitDays] = useState(30)
+  const [exitTimeframe, setExitTimeframe] = useState('1d')
+
+  // Timeframe comparison state
+  const [comparison, setComparison] = useState(null)
+  const [compLoading, setCompLoading] = useState(false)
+
   const texts = {
     tr: {
       title: 'Sinyal Backtesting',
@@ -29,6 +40,7 @@ const Backtesting = ({ t, lang }) => {
       history: 'Sinyal Geçmişi',
       byCoins: 'Coin Bazlı',
       simulate: 'Simülasyon',
+      exitStrategy: '🎯 Çıkış Stratejisi',
       period: 'Dönem',
       days7: '7 Gün',
       days30: '30 Gün',
@@ -66,6 +78,7 @@ const Backtesting = ({ t, lang }) => {
       history: 'Signal History',
       byCoins: 'By Coin',
       simulate: 'Simulate',
+      exitStrategy: '🎯 Exit Strategy',
       period: 'Period',
       days7: '7 Days',
       days30: '30 Days',
@@ -140,6 +153,38 @@ const Backtesting = ({ t, lang }) => {
     }
   }
 
+  // Exit Strategy Backtest
+  const runExitBacktest = async () => {
+    setExitLoading(true)
+    try {
+      const resp = await api.get(`/api/backtest/quick?symbol=${exitSymbol}&days=${exitDays}&timeframe=${exitTimeframe}`)
+      if (resp.ok) {
+        const data = await resp.json()
+        setExitBacktest(data)
+      }
+    } catch (e) {
+      console.error('Exit backtest error:', e)
+    } finally {
+      setExitLoading(false)
+    }
+  }
+
+  // Timeframe Comparison
+  const runComparison = async () => {
+    setCompLoading(true)
+    try {
+      const resp = await api.get(`/api/backtest/compare?symbol=${exitSymbol}&days=${exitDays}`)
+      if (resp.ok) {
+        const data = await resp.json()
+        setComparison(data)
+      }
+    } catch (e) {
+      console.error('Comparison error:', e)
+    } finally {
+      setCompLoading(false)
+    }
+  }
+
   const popularCoins = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'AVAX']
 
   return (
@@ -181,7 +226,8 @@ const Backtesting = ({ t, lang }) => {
             { id: 'overview', icon: '📊', label: txt.overview },
             { id: 'history', icon: '📜', label: txt.history },
             { id: 'coins', icon: '🪙', label: txt.byCoins },
-            { id: 'simulate', icon: '🎮', label: txt.simulate }
+            { id: 'simulate', icon: '🎮', label: txt.simulate },
+            { id: 'exitStrategy', icon: '🎯', label: txt.exitStrategy }
           ].map(tab => (
             <button
               key={tab.id}
@@ -431,6 +477,339 @@ const Backtesting = ({ t, lang }) => {
                     </table>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Exit Strategy Tab */}
+            {activeTab === 'exitStrategy' && (
+              <div className="space-y-6">
+                {/* Kontroller */}
+                <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+                  <h3 className="font-bold text-white mb-4">
+                    🎯 {lang === 'tr' ? 'Exit Strategy Backtest' : 'Exit Strategy Backtest'}
+                  </h3>
+                  <div className="flex flex-wrap gap-4 items-end">
+                    {/* Coin Seçimi */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-1">Coin</label>
+                      <select
+                        value={exitSymbol}
+                        onChange={(e) => setExitSymbol(e.target.value)}
+                        className="px-4 py-2 rounded-lg border border-gray-700 bg-gray-800 text-white"
+                      >
+                        {['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'MATIC'].map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Gün Seçimi */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-1">{lang === 'tr' ? 'Dönem' : 'Period'}</label>
+                      <select
+                        value={exitDays}
+                        onChange={(e) => setExitDays(Number(e.target.value))}
+                        className="px-4 py-2 rounded-lg border border-gray-700 bg-gray-800 text-white"
+                      >
+                        <option value={7}>7 {lang === 'tr' ? 'Gün' : 'Days'}</option>
+                        <option value={14}>14 {lang === 'tr' ? 'Gün' : 'Days'}</option>
+                        <option value={30}>30 {lang === 'tr' ? 'Gün' : 'Days'}</option>
+                        <option value={60}>60 {lang === 'tr' ? 'Gün' : 'Days'}</option>
+                        <option value={90}>90 {lang === 'tr' ? 'Gün' : 'Days'}</option>
+                      </select>
+                    </div>
+
+                    {/* Timeframe Seçimi */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-1">Timeframe</label>
+                      <select
+                        value={exitTimeframe}
+                        onChange={(e) => setExitTimeframe(e.target.value)}
+                        className="px-4 py-2 rounded-lg border border-gray-700 bg-gray-800 text-white"
+                      >
+                        <option value="1d">1 {lang === 'tr' ? 'Günlük' : 'Day'}</option>
+                        <option value="1w">1 {lang === 'tr' ? 'Haftalık' : 'Week'}</option>
+                        <option value="1m">1 {lang === 'tr' ? 'Aylık' : 'Month'}</option>
+                      </select>
+                    </div>
+
+                    {/* Butonlar */}
+                    <button
+                      onClick={runExitBacktest}
+                      disabled={exitLoading}
+                      className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {exitLoading ? (
+                        <><div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div> Test Ediliyor...</>
+                      ) : (
+                        <>{lang === 'tr' ? '🧪 Backtest Çalıştır' : '🧪 Run Backtest'}</>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={runComparison}
+                      disabled={compLoading}
+                      className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
+                    >
+                      {compLoading ? '...' : (lang === 'tr' ? '📊 Karşılaştır' : '📊 Compare')}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sonuç Kartları */}
+                {exitBacktest?.summary && (
+                  <div className="space-y-4">
+                    {/* Özet Kartlar */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                      {/* Success Rate */}
+                      <div className={`rounded-xl p-4 text-center ${
+                        exitBacktest.summary.success_rate >= 50 ? 'bg-green-900/30' : 'bg-red-900/30'
+                      }`}>
+                        <div className={`text-2xl font-bold ${
+                          exitBacktest.summary.success_rate >= 50 ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          %{exitBacktest.summary.success_rate}
+                        </div>
+                        <div className="text-xs text-gray-400">{lang === 'tr' ? 'Başarı Oranı' : 'Success Rate'}</div>
+                      </div>
+
+                      {/* Profit Factor */}
+                      <div className={`rounded-xl p-4 text-center ${
+                        exitBacktest.summary.profit_factor >= 1 ? 'bg-green-900/30' : 'bg-red-900/30'
+                      }`}>
+                        <div className={`text-2xl font-bold ${
+                          exitBacktest.summary.profit_factor >= 1 ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          {exitBacktest.summary.profit_factor}
+                        </div>
+                        <div className="text-xs text-gray-400">Profit Factor</div>
+                      </div>
+
+                      {/* Total Return */}
+                      <div className={`rounded-xl p-4 text-center ${
+                        exitBacktest.summary.total_return_pct >= 0 ? 'bg-green-900/30' : 'bg-red-900/30'
+                      }`}>
+                        <div className={`text-2xl font-bold ${
+                          exitBacktest.summary.total_return_pct >= 0 ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          {exitBacktest.summary.total_return_pct >= 0 ? '+' : ''}{exitBacktest.summary.total_return_pct}%
+                        </div>
+                        <div className="text-xs text-gray-400">{lang === 'tr' ? 'Toplam Getiri' : 'Total Return'}</div>
+                      </div>
+
+                      {/* Total Signals */}
+                      <div className="bg-gray-800 rounded-xl p-4 text-center">
+                        <div className="text-2xl font-bold text-white">
+                          {exitBacktest.summary.total_signals}
+                        </div>
+                        <div className="text-xs text-gray-400">{lang === 'tr' ? 'Toplam Sinyal' : 'Total Signals'}</div>
+                      </div>
+
+                      {/* Max Drawdown */}
+                      <div className="bg-orange-900/30 rounded-xl p-4 text-center">
+                        <div className="text-2xl font-bold text-orange-400">
+                          -{exitBacktest.summary.max_drawdown}%
+                        </div>
+                        <div className="text-xs text-gray-400">Max Drawdown</div>
+                      </div>
+
+                      {/* Avg Hold Time */}
+                      <div className="bg-blue-900/30 rounded-xl p-4 text-center">
+                        <div className="text-2xl font-bold text-blue-400">
+                          {exitBacktest.summary.avg_hold_hours}h
+                        </div>
+                        <div className="text-xs text-gray-400">{lang === 'tr' ? 'Ort. Tutma' : 'Avg Hold'}</div>
+                      </div>
+                    </div>
+
+                    {/* TP/SL Dağılımı */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-green-900/20 rounded-xl p-4 text-center border border-green-800">
+                        <div className="text-3xl font-bold text-green-400">
+                          {exitBacktest.summary.successful}
+                        </div>
+                        <div className="text-sm text-green-300">🟢 Take Profit</div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          {lang === 'tr' ? 'Ort. Kâr' : 'Avg Profit'}: +{exitBacktest.summary.avg_profit}%
+                        </div>
+                      </div>
+
+                      <div className="bg-red-900/20 rounded-xl p-4 text-center border border-red-800">
+                        <div className="text-3xl font-bold text-red-400">
+                          {exitBacktest.summary.failed}
+                        </div>
+                        <div className="text-sm text-red-300">🔴 Stop Loss</div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          {lang === 'tr' ? 'Ort. Zarar' : 'Avg Loss'}: {exitBacktest.summary.avg_loss}%
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-800 rounded-xl p-4 text-center">
+                        <div className="text-3xl font-bold text-gray-300">
+                          {exitBacktest.summary.expired}
+                        </div>
+                        <div className="text-sm text-gray-400">⏱️ {lang === 'tr' ? 'Süre Aşımı' : 'Expired'}</div>
+                        <div className="text-xs text-gray-500 mt-1">7 gün içinde kapanmadı</div>
+                      </div>
+                    </div>
+
+                    {/* En İyi ve En Kötü Trade */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {exitBacktest.summary.best_trade && (
+                        <div className="bg-green-900/20 rounded-xl p-4 border border-green-800">
+                          <h4 className="font-bold text-green-400 mb-2">
+                            🏆 {lang === 'tr' ? 'En İyi Trade' : 'Best Trade'}
+                          </h4>
+                          <div className="space-y-1 text-sm">
+                            <p><span className="text-gray-500">{lang === 'tr' ? 'Tarih' : 'Date'}:</span> {exitBacktest.summary.best_trade.entry_date}</p>
+                            <p><span className="text-gray-500">{lang === 'tr' ? 'Giriş' : 'Entry'}:</span> ${exitBacktest.summary.best_trade.entry_price?.toLocaleString()}</p>
+                            <p><span className="text-gray-500">{lang === 'tr' ? 'Çıkış' : 'Exit'}:</span> {exitBacktest.summary.best_trade.exit_reason}</p>
+                            <p className="text-lg font-bold text-green-400">+{exitBacktest.summary.best_trade.profit_loss_pct}%</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {exitBacktest.summary.worst_trade && (
+                        <div className="bg-red-900/20 rounded-xl p-4 border border-red-800">
+                          <h4 className="font-bold text-red-400 mb-2">
+                            💀 {lang === 'tr' ? 'En Kötü Trade' : 'Worst Trade'}
+                          </h4>
+                          <div className="space-y-1 text-sm">
+                            <p><span className="text-gray-500">{lang === 'tr' ? 'Tarih' : 'Date'}:</span> {exitBacktest.summary.worst_trade.entry_date}</p>
+                            <p><span className="text-gray-500">{lang === 'tr' ? 'Giriş' : 'Entry'}:</span> ${exitBacktest.summary.worst_trade.entry_price?.toLocaleString()}</p>
+                            <p><span className="text-gray-500">{lang === 'tr' ? 'Çıkış' : 'Exit'}:</span> {exitBacktest.summary.worst_trade.exit_reason}</p>
+                            <p className="text-lg font-bold text-red-400">{exitBacktest.summary.worst_trade.profit_loss_pct}%</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Trade Listesi */}
+                    {exitBacktest.results?.length > 0 && (
+                      <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+                        <h4 className="font-bold text-white p-4 border-b border-gray-800">
+                          📋 {lang === 'tr' ? 'Trade Geçmişi' : 'Trade History'} ({exitBacktest.results.length})
+                        </h4>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-800">
+                              <tr>
+                                <th className="px-4 py-2 text-left text-gray-400">{lang === 'tr' ? 'Tarih' : 'Date'}</th>
+                                <th className="px-4 py-2 text-right text-gray-400">{lang === 'tr' ? 'Giriş' : 'Entry'}</th>
+                                <th className="px-4 py-2 text-right text-gray-400">SL</th>
+                                <th className="px-4 py-2 text-right text-gray-400">TP</th>
+                                <th className="px-4 py-2 text-center text-gray-400">{lang === 'tr' ? 'Sonuç' : 'Result'}</th>
+                                <th className="px-4 py-2 text-right text-gray-400">P/L</th>
+                                <th className="px-4 py-2 text-right text-gray-400">{lang === 'tr' ? 'Süre' : 'Duration'}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {exitBacktest.results.map((trade, i) => (
+                                <tr key={i} className="border-t border-gray-800 hover:bg-gray-800/50">
+                                  <td className="px-4 py-2 text-gray-300">{trade.entry_date}</td>
+                                  <td className="px-4 py-2 text-right text-gray-300">${trade.entry_price?.toLocaleString()}</td>
+                                  <td className="px-4 py-2 text-right text-red-400">${trade.stop_loss?.toFixed(2)}</td>
+                                  <td className="px-4 py-2 text-right text-green-400">${trade.take_profit?.toFixed(2)}</td>
+                                  <td className="px-4 py-2 text-center">
+                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                      trade.exit_reason === 'TAKE_PROFIT' ? 'bg-green-900/50 text-green-400' :
+                                      trade.exit_reason === 'STOP_LOSS' ? 'bg-red-900/50 text-red-400' :
+                                      'bg-gray-700 text-gray-400'
+                                    }`}>
+                                      {trade.exit_reason === 'TAKE_PROFIT' ? '🟢 TP' :
+                                       trade.exit_reason === 'STOP_LOSS' ? '🔴 SL' : '⏱️ EXP'}
+                                    </span>
+                                  </td>
+                                  <td className={`px-4 py-2 text-right font-medium ${
+                                    trade.profit_loss_pct >= 0 ? 'text-green-400' : 'text-red-400'
+                                  }`}>
+                                    {trade.profit_loss_pct >= 0 ? '+' : ''}{trade.profit_loss_pct}%
+                                  </td>
+                                  <td className="px-4 py-2 text-right text-gray-500">{trade.hold_duration_hours}h</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Timeframe Karşılaştırma */}
+                {comparison && (
+                  <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+                    <h4 className="font-bold text-white mb-4">
+                      📊 {comparison.symbol} - Timeframe {lang === 'tr' ? 'Karşılaştırması' : 'Comparison'}
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {Object.entries(comparison.comparison).map(([tf, data]) => (
+                        <div
+                          key={tf}
+                          className={`rounded-xl p-4 border-2 ${
+                            tf === comparison.best_timeframe
+                              ? 'border-green-500 bg-green-900/20'
+                              : 'border-gray-700 bg-gray-800'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-bold text-lg text-white">
+                              {tf === '1d' ? '1 Günlük' : tf === '1w' ? '1 Haftalık' : '1 Aylık'}
+                            </span>
+                            {tf === comparison.best_timeframe && (
+                              <span className="text-green-400">⭐ {lang === 'tr' ? 'En İyi' : 'Best'}</span>
+                            )}
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Success Rate:</span>
+                              <span className={data.success_rate >= 50 ? 'text-green-400 font-bold' : 'text-red-400'}>
+                                %{data.success_rate}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Total Return:</span>
+                              <span className={data.total_return_pct >= 0 ? 'text-green-400 font-bold' : 'text-red-400'}>
+                                {data.total_return_pct >= 0 ? '+' : ''}{data.total_return_pct}%
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Profit Factor:</span>
+                              <span className={data.profit_factor >= 1 ? 'text-green-400 font-bold' : 'text-red-400'}>
+                                {data.profit_factor}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {comparison.best_timeframe && (
+                      <div className="mt-4 p-3 bg-blue-900/20 rounded-lg text-sm text-blue-400">
+                        💡 <strong>{comparison.best_timeframe === '1d' ? '1 Günlük' : comparison.best_timeframe === '1w' ? '1 Haftalık' : '1 Aylık'}</strong> timeframe bu dönemde {comparison.symbol} için en iyi performansı gösterdi.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Boş State */}
+                {!exitBacktest && !comparison && (
+                  <div className="text-center py-12 bg-gray-900 rounded-xl border border-gray-800">
+                    <div className="text-6xl mb-4">🧪</div>
+                    <h3 className="text-xl font-bold text-white mb-2">
+                      {lang === 'tr' ? 'Exit Strategy Backtest' : 'Exit Strategy Backtest'}
+                    </h3>
+                    <p className="text-gray-400 mb-4">
+                      {lang === 'tr'
+                        ? 'Stop-Loss ve Take-Profit stratejisinin geçmiş performansını test et.'
+                        : 'Test the historical performance of Stop-Loss and Take-Profit strategy.'}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {lang === 'tr'
+                        ? 'Yukarıdan coin ve dönem seçip "Backtest Çalıştır" butonuna tıkla.'
+                        : 'Select a coin and period above, then click "Run Backtest".'}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
