@@ -81,7 +81,7 @@ MIN_VOLUME_24H = 1_000_000       # $1M minimum hacim
 
 # İşlenecek coin limitleri
 COIN_PROCESS_LIMIT = 500         # TOP 500 coin
-HISTORICAL_DATA_LIMIT = 250      # İlk 250'ye historical data
+HISTORICAL_DATA_LIMIT = 400      # İlk 400'e historical data (expanded Binance list)
 
 # Analysis Service instance
 analysis_service = AnalysisService()
@@ -302,7 +302,9 @@ print(f"  Limits: TOP {COIN_PROCESS_LIMIT} + Historical {HISTORICAL_DATA_LIMIT}"
 # HISTORICAL PRICE FETCHERS
 # ============================================
 
+# Expanded Binance symbols list - 240+ coins for better historical data coverage
 BINANCE_SYMBOLS = {
+    # Top 100 by market cap
     "BTC", "ETH", "BNB", "XRP", "SOL", "ADA", "DOGE", "TRX", "AVAX",
     "DOT", "LINK", "MATIC", "LTC", "BCH", "ATOM", "UNI", "XLM", "ETC",
     "FIL", "APT", "NEAR", "INJ", "OP", "ARB", "SUI", "SEI", "FET",
@@ -312,10 +314,29 @@ BINANCE_SYMBOLS = {
     "COMP", "ENJ", "CHZ", "FLOW", "EOS", "XTZ", "NEO", "ZEC", "DASH",
     "IOTA", "THETA", "EGLD", "QNT", "RUNE", "KAVA", "CFX", "APE", "GMX",
     "W", "STRK", "MANTA", "DYDX", "PENDLE", "BLUR", "FLOKI", "BONK",
-    "WIF", "MEME", "ORDI", "JTO", "ZK", "POL", "ONDO", "MINA"
+    "WIF", "MEME", "ORDI", "JTO", "ZK", "POL", "ONDO", "MINA",
+    # Additional working Binance symbols (tested)
+    "XMR", "NEXO", "CAKE", "TRUMP", "TWT", "BTT", "JST", "SUN", "WIN", "HOT",
+    "ROSE", "ONE", "ZIL", "ICX", "ONT", "SC", "RVN", "ZEN", "DCR", "WAVES",
+    "BAT", "ENS", "1INCH", "SUSHI", "YFI", "BADGER", "PERP", "REEF", "CELO", "ANKR",
+    "STORJ", "SKL", "CTSI", "BAND", "NKN", "CELR", "OGN", "LINA", "ALPHA", "DODO",
+    "AUCTION", "MASK", "HIGH", "RARE", "POLS", "SUPER", "TVK", "BURGER", "SFP",
+    "ALPACA", "TLM", "SPELL", "CVX", "BICO", "RAD", "BOND", "QUICK", "REQ", "VOXEL",
+    "SSV", "LEVER", "AGLD", "GLMR", "MOVR", "ACH", "PLA", "DAR", "FXS", "LQTY",
+    "RPL", "MAGIC", "ID", "RDNT", "ARKM", "EDU", "CYBER", "COMBO", "MAV", "BAKE",
+    "WING", "FORTH", "ALCX", "FRONT", "POND", "VIDT", "TROY", "HARD", "IRIS", "MDT",
+    "STPT", "SXP", "COTI", "OG", "KEY", "DOCK", "DEGO", "DF", "EPS",
+    "UNFI", "TKO", "MLN", "FIO", "LSK", "ARDR", "STRAX", "STMX",
+    "MTL", "WRX", "IOTX", "DUSK", "PUNDIX", "DGB", "SYS", "XVG", "FLUX", "ERN",
+    "REI", "ASTR", "AGIX", "OCEAN", "LOOM", "KMD", "VTHO", "WAN", "NULS",
+    "GAS", "POWR", "RLC", "NMR", "ANT", "BAL", "SNT", "LRC", "OMG", "ZRX",
+    "AUDIO", "RAY", "PROM", "BETA", "LAZIO", "PORTO", "JOE", "BIFI", "JASMY", "GMT",
+    "LUNA", "LUNC"
 }
 
+# Extended CoinGecko mapping for fallback (coins not on Binance)
 SYMBOL_TO_COINGECKO = {
+    # Top coins
     "BTC": "bitcoin", "ETH": "ethereum", "BNB": "binancecoin",
     "XRP": "ripple", "SOL": "solana", "ADA": "cardano",
     "DOGE": "dogecoin", "TRX": "tron", "AVAX": "avalanche-2",
@@ -325,6 +346,16 @@ SYMBOL_TO_COINGECKO = {
     "FIL": "filecoin", "APT": "aptos", "NEAR": "near",
     "INJ": "injective-protocol", "OP": "optimism", "ARB": "arbitrum",
     "TON": "the-open-network", "HBAR": "hedera-hashgraph",
+    # Additional coins not on Binance (for fallback)
+    "CRO": "crypto-com-chain", "MNT": "mantle", "KCS": "kucoin-shares",
+    "OKB": "okb", "GT": "gatechain-token", "LEO": "leo-token",
+    "BGB": "bitget-token", "KAS": "kaspa", "FLR": "flare-networks",
+    "XDC": "xdce-crowd-sale", "PI": "pi-network-iou", "BSV": "bitcoin-sv",
+    "HYPE": "hyperliquid", "BNSOL": "binance-staked-sol",
+    "HT": "huobi-token", "CORE": "coredaoorg", "KLAY": "klay-token",
+    "BEAM": "beam", "MINA": "mina-protocol", "OSMO": "osmosis",
+    "KAVA": "kava", "ZEC": "zcash", "XTZ": "tezos", "EOS": "eos",
+    "IOTA": "iota", "NEO": "neo", "DASH": "dash", "THETA": "theta-token",
 }
 
 CMC_API_KEY = os.getenv("CMC_API_KEY", "")
