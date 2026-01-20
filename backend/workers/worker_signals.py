@@ -334,28 +334,91 @@ BINANCE_SYMBOLS = {
     "LUNA", "LUNC"
 }
 
-# Extended CoinGecko mapping for fallback (coins not on Binance)
+# Extended CoinGecko mapping for 180+ coins (fallback for non-Binance coins)
 SYMBOL_TO_COINGECKO = {
-    # Top coins
-    "BTC": "bitcoin", "ETH": "ethereum", "BNB": "binancecoin",
-    "XRP": "ripple", "SOL": "solana", "ADA": "cardano",
-    "DOGE": "dogecoin", "TRX": "tron", "AVAX": "avalanche-2",
-    "DOT": "polkadot", "LINK": "chainlink", "MATIC": "matic-network",
-    "LTC": "litecoin", "BCH": "bitcoin-cash", "ATOM": "cosmos",
-    "UNI": "uniswap", "XLM": "stellar", "ETC": "ethereum-classic",
-    "FIL": "filecoin", "APT": "aptos", "NEAR": "near",
-    "INJ": "injective-protocol", "OP": "optimism", "ARB": "arbitrum",
-    "TON": "the-open-network", "HBAR": "hedera-hashgraph",
-    # Additional coins not on Binance (for fallback)
-    "CRO": "crypto-com-chain", "MNT": "mantle", "KCS": "kucoin-shares",
-    "OKB": "okb", "GT": "gatechain-token", "LEO": "leo-token",
-    "BGB": "bitget-token", "KAS": "kaspa", "FLR": "flare-networks",
-    "XDC": "xdce-crowd-sale", "PI": "pi-network-iou", "BSV": "bitcoin-sv",
-    "HYPE": "hyperliquid", "BNSOL": "binance-staked-sol",
-    "HT": "huobi-token", "CORE": "coredaoorg", "KLAY": "klay-token",
-    "BEAM": "beam", "MINA": "mina-protocol", "OSMO": "osmosis",
-    "KAVA": "kava", "ZEC": "zcash", "XTZ": "tezos", "EOS": "eos",
-    "IOTA": "iota", "NEO": "neo", "DASH": "dash", "THETA": "theta-token",
+    # TOP 50 by Market Cap
+    "BTC": "bitcoin", "ETH": "ethereum", "USDT": "tether", "BNB": "binancecoin",
+    "XRP": "ripple", "SOL": "solana", "USDC": "usd-coin", "ADA": "cardano",
+    "DOGE": "dogecoin", "TRX": "tron", "AVAX": "avalanche-2", "DOT": "polkadot",
+    "LINK": "chainlink", "MATIC": "matic-network", "LTC": "litecoin", "BCH": "bitcoin-cash",
+    "SHIB": "shiba-inu", "ATOM": "cosmos", "UNI": "uniswap", "XLM": "stellar",
+    "ETC": "ethereum-classic", "TON": "the-open-network", "HBAR": "hedera-hashgraph",
+    "FIL": "filecoin", "APT": "aptos", "NEAR": "near", "INJ": "injective-protocol",
+    "OP": "optimism", "ARB": "arbitrum", "SUI": "sui", "SEI": "sei-network",
+    "AAVE": "aave", "GRT": "the-graph", "ALGO": "algorand", "VET": "vechain",
+    "FTM": "fantom", "SAND": "the-sandbox", "MANA": "decentraland", "AXS": "axie-infinity",
+    "GALA": "gala", "LDO": "lido-dao", "MKR": "maker", "SNX": "havven",
+    "CRV": "curve-dao-token", "COMP": "compound-governance-token", "ENJ": "enjincoin",
+    "CHZ": "chiliz", "FLOW": "flow", "EOS": "eos", "XTZ": "tezos",
+    # Layer 1 & Layer 2
+    "NEO": "neo", "ZEC": "zcash", "DASH": "dash", "IOTA": "iota",
+    "THETA": "theta-token", "EGLD": "elrond-erd-2", "QNT": "quant-network",
+    "RUNE": "thorchain", "KAVA": "kava", "CFX": "conflux-token", "XMR": "monero",
+    "KAS": "kaspa", "FLR": "flare-networks", "ROSE": "oasis-network", "ONE": "harmony",
+    "ZIL": "zilliqa", "ICX": "icon", "ONT": "ontology", "IOST": "iostoken",
+    "GLMR": "moonbeam", "MOVR": "moonriver", "ASTR": "astar", "CELO": "celo",
+    "WAVES": "waves", "LSK": "lisk", "ARDR": "ardor", "STRK": "starknet",
+    "MANTA": "manta-network", "ZK": "zksync", "SONIC": "sonic-labs", "MOVE": "movement",
+    # Exchange Tokens
+    "CRO": "crypto-com-chain", "KCS": "kucoin-shares", "OKB": "okb", "LEO": "leo-token",
+    "GT": "gatechain-token", "MNT": "mantle", "BGB": "bitget-token", "NEXO": "nexo",
+    "HTX": "huobi-token", "WRX": "wazirx",
+    # DeFi
+    "PENDLE": "pendle", "RDNT": "radiant-capital", "GMX": "gmx", "DYDX": "dydx",
+    "SSV": "ssv-network", "RPL": "rocket-pool", "FXS": "frax-share", "LQTY": "liquity",
+    "CVX": "convex-finance", "SPELL": "spell-token", "BICO": "biconomy",
+    "BAND": "band-protocol", "ALPHA": "alpha-finance", "DODO": "dodo", "REEF": "reef",
+    "YFI": "yearn-finance", "SUSHI": "sushi", "1INCH": "1inch", "BAL": "balancer",
+    "MORPHO": "morpho", "ETHFI": "ether-fi", "USUAL": "usual",
+    # AI & Data
+    "FET": "fetch-ai", "RNDR": "render-token", "RENDER": "render-token",
+    "AGIX": "singularitynet", "OCEAN": "ocean-protocol", "TAO": "bittensor",
+    "ARKM": "arkham", "WLD": "worldcoin-wld", "VIRTUAL": "virtual-protocol",
+    "AI16Z": "ai16z", "AIXBT": "aixbt", "GRIFFAIN": "griffain", "ZEREBRO": "zerebro",
+    "GOAT": "goatseus-maximus", "ACT": "act-i-the-ai-prophecy",
+    # Gaming & Metaverse
+    "IMX": "immutable-x", "MAGIC": "magic", "PLA": "playdapp", "PRIME": "echelon-prime",
+    "BEAM": "beam-2", "PIXEL": "pixels", "PORTAL": "portal-gaming", "XAI": "xai-blockchain",
+    "GODS": "gods-unchained", "ILV": "illuvium", "SUPER": "superfarm",
+    "ALICE": "my-neighbor-alice", "WEMIX": "wemix-token", "GMT": "stepn",
+    # Meme Coins
+    "PEPE": "pepe", "WIF": "dogwifcoin", "BONK": "bonk", "FLOKI": "floki",
+    "MEME": "memecoin", "BOME": "book-of-meme", "MEW": "cat-in-a-dogs-world",
+    "POPCAT": "popcat", "NEIRO": "neiro-on-eth", "TURBO": "turbo",
+    "PNUT": "peanut-the-squirrel", "FARTCOIN": "fartcoin", "SPX": "spx6900",
+    "TRUMP": "official-trump", "BRETT": "brett", "MOG": "mog-coin",
+    "SLERF": "slerf", "MYRO": "myro", "TOSHI": "toshi",
+    # Infrastructure
+    "PYTH": "pyth-network", "TIA": "celestia", "DYM": "dymension", "ALT": "altlayer",
+    "MAVIA": "heroes-of-mavia", "STORJ": "storj", "ANKR": "ankr", "SKL": "skale",
+    "CTSI": "cartesi", "CELR": "celer-network", "NKN": "nkn", "ACH": "alchemy-pay",
+    "IOTX": "iotex", "GNO": "gnosis",
+    # Solana Ecosystem
+    "JUP": "jupiter-exchange-solana", "JTO": "jito-governance-token", "RAY": "raydium",
+    "ORCA": "orca", "MNDE": "marinade", "TENSOR": "tensor", "DRIFT": "drift-protocol",
+    "KMNO": "kamino", "PARCL": "parcl", "W": "wormhole",
+    # RWA
+    "ONDO": "ondo-finance", "CFG": "centrifuge", "MPL": "maple", "TRU": "truefi",
+    "CPOOL": "clearpool",
+    # Privacy
+    "ZEN": "horizen", "DCR": "decred", "SC": "siacoin", "FLUX": "zelcash", "AR": "arweave",
+    # Others
+    "COMBO": "furucombo", "ID": "space-id", "EDU": "open-campus",
+    "CYBER": "cyberconnect", "MAV": "maverick-protocol", "MASK": "mask-network",
+    "XDC": "xdce-crowd-sale", "CAKE": "pancakeswap-token", "TWT": "trust-wallet-token",
+    "BSV": "bitcoin-cash-sv", "BTT": "bittorrent", "JST": "just", "SUN": "sun-token",
+    "WIN": "wink", "HOT": "holotoken", "DGB": "digibyte", "RVN": "ravencoin",
+    "SYS": "syscoin", "PUNDIX": "pundi-x-2", "ERN": "ethernity-chain",
+    "DUSK": "dusk-network", "MTL": "metal", "STMX": "storm",
+    "JOE": "joe", "VELO": "velodrome-finance", "AERO": "aerodrome-finance",
+    "QUICK": "quickswap", "PERP": "perpetual-protocol",
+    "BAT": "basic-attention-token", "ENS": "ethereum-name-service", "SNT": "status",
+    "LRC": "loopring", "OMG": "omisego", "ZRX": "0x", "AUDIO": "audius",
+    "APE": "apecoin", "LUNA": "terra-luna-2", "LUNC": "terra-luna", "JASMY": "jasmycoin",
+    "OGN": "origin-protocol", "STX": "blockstack", "ICP": "internet-computer",
+    "ENA": "ethena", "PENGU": "pudgy-penguins", "BIO": "bio-protocol",
+    "POL": "polygon-ecosystem-token", "HYPE": "hyperliquid", "WBT": "whitebit",
+    "PAXG": "pax-gold", "XAUT": "tether-gold",
 }
 
 CMC_API_KEY = os.getenv("CMC_API_KEY", "")
