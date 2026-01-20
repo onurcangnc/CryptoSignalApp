@@ -57,9 +57,39 @@ TIMEFRAME_LABELS = {
     "1y": "1 Yıllık"
 }
 
+
+# Historical data caching
+HISTORICAL_CACHE_TTL = 3600  # Cache historical data for 1 hour
+
+# Wrapped token mapping - use underlying asset data
+WRAPPED_TOKEN_MAP = {
+    # Wrapped BTC variants -> use BTC data
+    "WBTC": "BTC", "TBTC": "BTC", "RENBTC": "BTC", "HBTC": "BTC",
+    "SBTC": "BTC", "OBTC": "BTC", "PBTC": "BTC", "BTCB": "BTC",
+    "CBBTC": "BTC", "LBTC": "BTC", "FBTC": "BTC", "SOLVBTC": "BTC",
+    "CLBTC": "BTC",
+    # Wrapped ETH variants -> use ETH data
+    "WETH": "ETH", "STETH": "ETH", "WSTETH": "ETH", "CBETH": "ETH",
+    "RETH": "ETH", "FRXETH": "ETH", "SFRXETH": "ETH", "METH": "ETH",
+    "WEETH": "ETH", "EETH": "ETH", "RSETH": "ETH", "EZETH": "ETH",
+    "SWETH": "ETH", "OSETH": "ETH", "ANKRETH": "ETH", "BETH": "ETH",
+    "WBETH": "ETH",
+    # Wrapped BNB variants -> use BNB data
+    "WBNB": "BNB", "SBNB": "BNB", "ABNB": "BNB",
+    # Wrapped SOL variants -> use SOL data
+    "WSOL": "SOL", "MSOL": "SOL", "JITOSOL": "SOL", "BNSOL": "SOL",
+    "JSOL": "SOL", "STSOL": "SOL",
+    # Wrapped AVAX -> use AVAX data
+    "WAVAX": "AVAX", "SAVAX": "AVAX",
+    # Wrapped MATIC/POL -> use POL data
+    "WMATIC": "POL", "STMATIC": "POL",
+    # Wrapped FTM -> use FTM data
+    "WFTM": "FTM",
+}
+
 # CoinGecko rate limiting
-COINGECKO_SEMAPHORE = asyncio.Semaphore(3)
-COINGECKO_BACKOFF = 5
+COINGECKO_SEMAPHORE = asyncio.Semaphore(10)  # Increased for better throughput
+COINGECKO_BACKOFF = 1.0  # Reduced backoff time
 
 # AI/Yapay Zeka Coinleri - Her zaman işlenecek
 AI_COINS = {
@@ -475,19 +505,109 @@ async def fetch_from_coingecko(symbol: str, days: int) -> List:
     return []
 
 
-async def fetch_historical_prices(symbol: str, days: int = 90) -> List:
-    """Multi-source historical price fetcher"""
-    # 1. Binance
+async def fetch_from_cmc(symbol: str, days: int) -> List:
+    """CoinMarketCap API - Third fallback"""
+    if not CMC_API_KEY:
+        return []
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            # First get CMC ID for the symbol
+            resp = await client.get(
+                "https://pro-api.coinmarketcap.com/v1/cryptocurrency/map",
+                headers={"X-CMC_PRO_API_KEY": CMC_API_KEY},
+                params={"symbol": symbol, "limit": 1}
+            )
+            if resp.status_code != 200:
+                return []
+
+            data = resp.json()
+            if not data.get("data"):
+                return []
+
+            cmc_id = data["data"][0]["id"]
+
+            # Get historical quotes
+            resp = await client.get(
+                "https://pro-api.coinmarketcap.com/v2/cryptocurrency/quotes/historical",
+                headers={"X-CMC_PRO_API_KEY": CMC_API_KEY},
+                params={
+                    "id": cmc_id,
+                    "interval": "daily",
+                    "count": min(days, 90)
+                }
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                quotes = data.get("data", {}).get("quotes", [])
+                prices = []
+                for q in quotes:
+                    try:
+                        price = q.get("quote", {}).get("USD", {}).get("price")
+                        ts = q.get("timestamp", "")
+                        if price and ts:
+                            from datetime import datetime
+                            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                            prices.append([int(dt.timestamp() * 1000), float(price)])
+                    except:
+                        continue
+                return prices
+    except Exception as e:
+        pass  # Silent fail for CMC
+    return []
+
+
+async def fetch_historical_prices_uncached(symbol: str, days: int = 90) -> List:
+    """Multi-source historical price fetcher (uncached)"""
+    # 1. Binance (fastest, no rate limits)
     prices = await fetch_from_binance(symbol, days)
     if prices and len(prices) >= 14:
         return prices
 
-    # 2. CoinGecko
+    # 2. CoinGecko (good coverage)
     prices = await fetch_from_coingecko(symbol, days)
     if prices and len(prices) >= 14:
         return prices
 
+    # 3. CoinMarketCap (third fallback)
+    prices = await fetch_from_cmc(symbol, days)
+    if prices and len(prices) >= 14:
+        return prices
+
     return []
+
+
+async def get_cached_historical(symbol: str, days: int = 90) -> List:
+    """Get historical prices from Redis cache or fetch fresh"""
+    cache_key = f"hist:{symbol}:{days}"
+
+    try:
+        cached = r.get(cache_key)
+        if cached:
+            return json.loads(cached)
+    except:
+        pass
+
+    # Not in cache, fetch fresh
+    prices = await fetch_historical_prices_uncached(symbol, days)
+
+    if prices and len(prices) >= 14:
+        try:
+            r.setex(cache_key, HISTORICAL_CACHE_TTL, json.dumps(prices))
+        except:
+            pass
+
+    return prices
+
+
+async def fetch_historical_prices(symbol: str, days: int = 90) -> List:
+    """Multi-source historical price fetcher with caching and wrapped token support"""
+    # Check if this is a wrapped token - use underlying asset
+    underlying = WRAPPED_TOKEN_MAP.get(symbol)
+    if underlying:
+        symbol = underlying
+
+    return await get_cached_historical(symbol, days)
 
 
 def get_news_sentiment_for_coin(symbol: str, news_db: Dict) -> Optional[Dict]:
